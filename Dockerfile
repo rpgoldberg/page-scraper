@@ -24,7 +24,9 @@ COPY package*.json ./
 
 # Install dependencies (skip Puppeteer Chrome download since we install Chrome manually)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-RUN npm install --only=production
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+RUN npm config set fetch-timeout 300000 && npm config set fetch-retry-maxtimeout 300000
+RUN timeout 600 npm install --no-audit --no-fund
 
 # Copy source code
 COPY . .

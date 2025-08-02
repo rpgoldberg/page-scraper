@@ -5,6 +5,9 @@ import scraperRoutes from './routes/scraper';
 
 dotenv.config();
 
+// Import browser pool functionality
+import { initializeBrowserPool } from './services/genericScraper';
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -12,31 +15,47 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    service: 'figure-scraper',
-    timestamp: new Date().toISOString()
-  });
+// Health check endpoints
+const healthResponse = () => ({ 
+  status: 'healthy', 
+  service: 'page-scraper',
+  timestamp: new Date().toISOString()
 });
 
-// Scraper routes
-app.use('/api', scraperRoutes);
+// Root endpoint for health checks (Docker health checks hit this)
+app.get('/', (req, res) => {
+  res.json(healthResponse());
+});
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`[SCRAPER] Server running on port ${PORT}`);
-  console.log(`[SCRAPER] Health check: http://localhost:${PORT}/health`);
+app.get('/health', (req, res) => {
+  res.json(healthResponse());
+});
+
+// Scraper routes (no /api prefix for consistency)
+app.use('/', scraperRoutes);
+
+// Start server and initialize browser pool
+app.listen(PORT, async () => {
+  console.log(`[PAGE-SCRAPER] Server running on port ${PORT}`);
+  console.log(`[PAGE-SCRAPER] Health check: http://localhost:${PORT}/health`);
+  
+  // Initialize browser pool in background
+  console.log('[PAGE-SCRAPER] Initializing browser pool...');
+  try {
+    await initializeBrowserPool();
+    console.log('[PAGE-SCRAPER] Browser pool ready!');
+  } catch (error) {
+    console.error('[PAGE-SCRAPER] Failed to initialize browser pool:', error);
+  }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('[SCRAPER] Received SIGTERM, shutting down gracefully');
+  console.log('[PAGE-SCRAPER] Received SIGTERM, shutting down gracefully');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('[SCRAPER] Received SIGINT, shutting down gracefully');
+  console.log('[PAGE-SCRAPER] Received SIGINT, shutting down gracefully');
   process.exit(0);
 });
