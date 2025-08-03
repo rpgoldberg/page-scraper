@@ -25,9 +25,9 @@ export interface ScrapeConfig {
 export const SITE_CONFIGS = {
   mfc: {
     imageSelector: '.item-picture .main img',
-    manufacturerSelector: 'span[switch]',
-    nameSelector: 'span[switch]:nth-of-type(2)',
-    scaleSelector: '.item-scale a[title="Scale"]',
+    manufacturerSelector: '.data-field .data-label:contains("Company") + .data-value .item-entries a span[switch]',
+    nameSelector: '.data-field .data-label:contains("Character") + .data-value .item-entries a span[switch]',
+    scaleSelector: '.item-scale',
     cloudflareDetection: {
       titleIncludes: ['Just a moment'],
       bodyIncludes: ['Just a moment']
@@ -229,19 +229,49 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
           }
         }
         
-        // Extract manufacturer
+        // Extract manufacturer (special handling for MFC)
         if (selectors.manufacturerSelector) {
-          const manufacturerElement = document.querySelector(selectors.manufacturerSelector) as HTMLElement;
-          if (manufacturerElement && manufacturerElement.textContent) {
-            data.manufacturer = manufacturerElement.textContent.trim();
+          if (selectors.manufacturerSelector.includes(':contains(')) {
+            // Handle MFC-specific Company field
+            const dataFields = Array.from(document.querySelectorAll('.data-field'));
+            for (const field of dataFields) {
+              const label = field.querySelector('.data-label');
+              if (label && label.textContent && label.textContent.trim() === 'Company') {
+                const manufacturerElement = field.querySelector('.item-entries a span[switch]') as HTMLElement;
+                if (manufacturerElement && manufacturerElement.textContent) {
+                  data.manufacturer = manufacturerElement.textContent.trim();
+                  break;
+                }
+              }
+            }
+          } else {
+            const manufacturerElement = document.querySelector(selectors.manufacturerSelector) as HTMLElement;
+            if (manufacturerElement && manufacturerElement.textContent) {
+              data.manufacturer = manufacturerElement.textContent.trim();
+            }
           }
         }
         
-        // Extract name
+        // Extract name (special handling for MFC)
         if (selectors.nameSelector) {
-          const nameElement = document.querySelector(selectors.nameSelector) as HTMLElement;
-          if (nameElement && nameElement.textContent) {
-            data.name = nameElement.textContent.trim();
+          if (selectors.nameSelector.includes(':contains(')) {
+            // Handle MFC-specific Character field
+            const dataFields = Array.from(document.querySelectorAll('.data-field'));
+            for (const field of dataFields) {
+              const label = field.querySelector('.data-label');
+              if (label && label.textContent && label.textContent.trim() === 'Character') {
+                const nameElement = field.querySelector('.item-entries a span[switch]') as HTMLElement;
+                if (nameElement && nameElement.textContent) {
+                  data.name = nameElement.textContent.trim();
+                  break;
+                }
+              }
+            }
+          } else {
+            const nameElement = document.querySelector(selectors.nameSelector) as HTMLElement;
+            if (nameElement && nameElement.textContent) {
+              data.name = nameElement.textContent.trim();
+            }
           }
         }
         
@@ -249,7 +279,17 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
         if (selectors.scaleSelector) {
           const scaleElement = document.querySelector(selectors.scaleSelector) as HTMLElement;
           if (scaleElement && scaleElement.textContent) {
-            data.scale = scaleElement.textContent.trim();
+            // For MFC, extract just the scale part (e.g., "1/7" from the item-scale element)
+            let scaleText = scaleElement.textContent.trim();
+            
+            // If it's an MFC .item-scale element, it might contain extra text
+            // Extract just the scale fraction (e.g., "1/7")
+            const scaleMatch = scaleText.match(/1\/\d+/);
+            if (scaleMatch) {
+              data.scale = scaleMatch[0];
+            } else {
+              data.scale = scaleText;
+            }
           }
         }
         
