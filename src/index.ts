@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import scraperRoutes from './routes/scraper';
+import * as packageJson from '../package.json';
 
 dotenv.config();
 
@@ -29,6 +30,15 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json(healthResponse());
+});
+
+// Version endpoint
+app.get('/version', (req, res) => {
+  res.json({
+    name: 'page-scraper',
+    version: packageJson.version,
+    status: 'ok'
+  });
 });
 
 // Scraper routes (no /api prefix for consistency)

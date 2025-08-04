@@ -80,26 +80,32 @@ Health check endpoint for monitoring.
 ### Docker
 ```bash
 docker build -t page-scraper .
-docker run -p 3000:3000 page-scraper
+# Development (port 3010)
+docker run -p 3010:3010 -e PORT=3010 page-scraper
+# Test (port 3005)
+docker run -p 3005:3005 -e PORT=3005 page-scraper
+# Production (port 3000)  
+docker run -p 3000:3000 -e PORT=3000 page-scraper
 ```
 
 ### Environment Variables
-- `PORT`: Server port (default: 3000)
+- `PORT`: Server port (default: 3000, dev: 3010, test: 3005)
 
 ## Integration
 
 Update your main application to call this service instead of direct scraping:
 
 ```javascript
-// MFC scraping
-const response = await fetch('http://page-scraper:3000/scrape/mfc', {
+// MFC scraping (use environment-specific URL)
+const scraperUrl = process.env.SCRAPER_SERVICE_URL || 'http://page-scraper:3000';
+const response = await fetch(`${scraperUrl}/scrape/mfc`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ url: mfcLink })
 });
 
 // Generic scraping
-const response = await fetch('http://page-scraper:3000/scrape', {
+const response = await fetch(`${scraperUrl}/scrape`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 

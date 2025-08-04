@@ -43,6 +43,6 @@ RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
 # Switch to non-root user
 USER pptruser
 
-EXPOSE 3000
+EXPOSE ${PORT:-3000}
 
 CMD ["npm", "start"]
