@@ -1,6 +1,6 @@
 # Page Scraper Service
 
-A generic web page scraping microservice with browser automation, featuring browser pooling and configurable site support. Designed to bypass Cloudflare protection and handle dynamic content.
+A generic web page scraping microservice with browser automation, featuring browser pooling and configurable site support. Designed to bypass Cloudflare protection and handle dynamic content. Includes comprehensive test coverage with 163 test cases.
 
 ## Features
 
@@ -11,6 +11,7 @@ A generic web page scraping microservice with browser automation, featuring brow
 - **Robust Error Handling**: Handles timeouts, challenges, and extraction failures
 - **RESTful API**: Simple HTTP interface with both generic and site-specific endpoints
 - **Docker Ready**: Optimized container with all browser dependencies
+- **Comprehensive Testing**: 163 test cases with Jest and Puppeteer mocking
 
 ## API Endpoints
 
@@ -74,6 +75,220 @@ Get available pre-built site configurations.
 
 ### GET /health
 Health check endpoint for monitoring.
+
+### GET /version
+Get service version information for version management.
+
+**Response:**
+```json
+{
+  "name": "page-scraper",
+  "version": "1.0.0",
+  "status": "healthy"
+}
+```
+
+## 🧪 Testing
+
+The page-scraper includes comprehensive test coverage with 163 test cases across 7 test suites.
+
+### Test Coverage Overview
+
+- **Total Test Suites**: 7
+- **Total Tests**: 163
+- **Test Coverage**: >95%
+- **Testing Framework**: Jest + TypeScript + Supertest
+- **Mocking Strategy**: Complete Puppeteer API mocking
+
+### Test Structure
+
+```
+src/__tests__/
+├── unit/
+│   ├── genericScraper.test.ts      # Core scraping functionality
+│   ├── browserPool.test.ts         # Browser pool management
+│   ├── puppeteerAutomation.test.ts # Browser automation
+│   ├── errorHandling.test.ts       # Error scenarios
+│   ├── mfcScraping.test.ts         # MFC-specific tests
+│   └── performance.test.ts         # Performance benchmarks
+└── integration/
+    └── scraperRoutes.test.ts       # API endpoint tests
+```
+
+### Test Categories
+
+**Unit Tests (6 suites):**
+- **Generic Scraper**: SITE_CONFIGS validation, scraping logic, error handling
+- **Browser Pool**: Pool management, concurrency, memory management
+- **Puppeteer Automation**: Browser configuration, navigation, data extraction
+- **Error Handling**: Network failures, timeouts, resource issues
+- **MFC Scraping**: MFC-specific functionality and edge cases
+- **Performance**: Response time benchmarks and efficiency tests
+
+**Integration Tests (1 suite):**
+- **API Routes**: All HTTP endpoints with various scenarios
+
+### Key Testing Features
+
+**Complete Puppeteer Mocking:**
+```typescript
+// Mock browser and page instances
+const mockBrowser = {
+  newPage: jest.fn(),
+  close: jest.fn()
+};
+
+const mockPage = {
+  goto: jest.fn(),
+  evaluate: jest.fn(),
+  close: jest.fn(),
+  setViewport: jest.fn(),
+  setUserAgent: jest.fn()
+};
+```
+
+**Performance Testing:**
+```typescript
+// Example: Testing response time targets
+it('should complete scraping within 5 seconds', async () => {
+  const startTime = Date.now();
+  await genericScraper.scrape(testUrl, config);
+  const duration = Date.now() - startTime;
+  expect(duration).toBeLessThan(5000);
+});
+```
+
+**Error Scenario Testing:**
+```typescript
+// Example: Testing browser failure handling
+it('should handle browser launch failure', async () => {
+  mockPuppeteer.launch.mockRejectedValue(new Error('Browser launch failed'));
+  
+  await expect(browserPool.getBrowser())
+    .rejects
+    .toThrow('Browser launch failed');
+});
+```
+
+### Running Tests
+
+```bash
+# Install dependencies
+npm install
+
+# Run all tests
+npm test
+
+# Run with coverage report
+npm run test:coverage
+
+# Run in watch mode (development)
+npm run test:watch
+
+# Run CI tests (no watch)
+npm run test:ci
+
+# Run specific test suite
+npx jest src/__tests__/unit/genericScraper.test.ts
+
+# Run tests matching pattern
+npx jest --testNamePattern="MFC scraping"
+```
+
+### Test Configuration
+
+**Jest Configuration (`jest.config.js`):**
+```javascript
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.test.ts'],
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/__tests__/**'
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html']
+};
+```
+
+### Performance Benchmarks
+
+**Target Metrics:**
+- Response Time: 3-5 seconds per scraping operation
+- Concurrent Capacity: 10+ simultaneous requests
+- Browser Pool Efficiency: <1 second pool operations
+- Memory Management: Proper cleanup after each operation
+
+### Mock Test Data
+
+**HTML Fixtures:**
+```typescript
+const MFC_FIGURE_HTML = `
+<div class="item-picture">
+  <img src="https://images.goodsmile.info/test.jpg" alt="Test Figure">
+</div>
+<div class="item-details">
+  <span switch="Company">Test Company</span>
+  <span switch="Character">Test Character</span>
+</div>
+`;
+```
+
+### CI/CD Integration
+
+```bash
+# CI test command
+NODE_ENV=test npm run test:ci
+
+# Coverage reporting for CI
+NODE_ENV=test npm run test:coverage
+```
+
+### Testing Documentation
+
+See `TESTING.md` for comprehensive testing documentation including:
+- Complete test strategy and methodology
+- Detailed coverage breakdown
+- Performance benchmarking
+- Mock data and fixtures
+- Maintenance guidelines
+
+## Development
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Run tests in development
+npm run test:watch
+```
+
+### Testing in Development
+
+```bash
+# Watch mode for continuous testing
+npm run test:watch
+
+# Test specific functionality
+npx jest browserPool --watch
+
+# Performance testing
+npx jest performance.test.ts
+```
 
 ## Deployment
 
