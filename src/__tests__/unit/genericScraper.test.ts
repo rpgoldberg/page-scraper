@@ -1,12 +1,10 @@
 import { jest } from '@jest/globals';
 import { scrapeGeneric, scrapeMFC, SITE_CONFIGS, ScrapeConfig } from '../../services/genericScraper';
-import { mockBrowser, mockPage } from '../__mocks__/puppeteer';
+import mockPuppeteer, { mockBrowser, mockPage } from '../__mocks__/puppeteer';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
 
 // Mock the entire puppeteer module
-jest.mock('puppeteer', () => ({
-  launch: jest.fn().mockResolvedValue(mockBrowser),
-}));
+jest.mock('puppeteer', () => mockPuppeteer);
 
 describe('genericScraper', () => {
   beforeEach(() => {

@@ -1,11 +1,9 @@
 import { jest } from '@jest/globals';
 import { scrapeGeneric, scrapeMFC, ScrapeConfig } from '../../services/genericScraper';
-import { mockBrowser, mockPage } from '../__mocks__/puppeteer';
+import mockPuppeteer, { mockBrowser, mockPage } from '../__mocks__/puppeteer';
 
 // Mock puppeteer
-jest.mock('puppeteer', () => ({
-  launch: jest.fn().mockResolvedValue(mockBrowser),
-}));
+jest.mock('puppeteer', () => mockPuppeteer);
 
 describe('Error Handling and Timeout Tests', () => {
   beforeEach(() => {

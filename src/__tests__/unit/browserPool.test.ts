@@ -1,11 +1,9 @@
 import { jest } from '@jest/globals';
 import { initializeBrowserPool } from '../../services/genericScraper';
-import { mockBrowser } from '../__mocks__/puppeteer';
+import mockPuppeteer, { mockBrowser } from '../__mocks__/puppeteer';
 
 // Mock puppeteer
-jest.mock('puppeteer', () => ({
-  launch: jest.fn().mockResolvedValue(mockBrowser),
-}));
+jest.mock('puppeteer', () => mockPuppeteer);
 
 // We need to test the BrowserPool class, but it's private
 // So we'll test through the public interface and some creative module manipulation

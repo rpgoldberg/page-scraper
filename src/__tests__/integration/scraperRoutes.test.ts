@@ -8,7 +8,7 @@ import * as genericScraper from '../../services/genericScraper';
 // Mock the genericScraper module
 jest.mock('../../services/genericScraper');
 
-const mockedGenericScraper = genericScraper as jest.Mocked<typeof genericScraper>;
+const mockedGenericScraper = genericScraper as jest.Mocked<typeof genericScraper> & { SITE_CONFIGS: Record<string, any> };
 
 describe('Scraper Routes Integration Tests', () => {
   let app: express.Application;

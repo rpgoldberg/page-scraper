@@ -1,5 +1,6 @@
 // Global test setup
 import { jest } from '@jest/globals';
+import { resetAllMocks } from './__mocks__/puppeteer';
 
 // Mock console methods to reduce test noise
 global.console = {
@@ -17,3 +18,9 @@ process.env.PORT = '0'; // Use random port for tests
 
 // Global test timeout
 jest.setTimeout(30000);
+
+// Reset all mocks before each test
+beforeEach(() => {
+  resetAllMocks();
+  jest.clearAllMocks();
+});

@@ -173,6 +173,8 @@ it('should handle browser launch failure', async () => {
 ### Running Tests
 
 ```bash
+# WSL Setup Required: Install Node.js via NVM (see ../WSL_TEST_FIX_SOLUTION.md)
+
 # Install dependencies
 npm install
 

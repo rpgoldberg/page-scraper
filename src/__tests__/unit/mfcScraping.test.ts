@@ -1,12 +1,10 @@
 import { jest } from '@jest/globals';
 import { scrapeMFC, SITE_CONFIGS, scrapeGeneric } from '../../services/genericScraper';
-import { mockBrowser, mockPage } from '../__mocks__/puppeteer';
+import mockPuppeteer, { mockBrowser, mockPage } from '../__mocks__/puppeteer';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML } from '../fixtures/test-html';
 
 // Mock puppeteer
-jest.mock('puppeteer', () => ({
-  launch: jest.fn().mockResolvedValue(mockBrowser),
-}));
+jest.mock('puppeteer', () => mockPuppeteer);
 
 describe('MFC-Specific Scraping Configuration Tests', () => {
   beforeEach(() => {
