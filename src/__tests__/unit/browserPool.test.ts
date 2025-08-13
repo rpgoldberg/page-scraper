@@ -1,28 +1,52 @@
 import { jest } from '@jest/globals';
-import { initializeBrowserPool } from '../../services/genericScraper';
-import mockPuppeteer, { mockBrowser } from '../__mocks__/puppeteer';
+import puppeteer from 'puppeteer';
+import { initializeBrowserPool, BrowserPool } from '../../services/genericScraper';
+import { createMockBrowser } from '../__mocks__/puppeteer';
 
-// Mock puppeteer
-jest.mock('puppeteer', () => mockPuppeteer);
+// Centralized Puppeteer mock from moduleNameMapper
 
 // We need to test the BrowserPool class, but it's private
 // So we'll test through the public interface and some creative module manipulation
 describe('Browser Pool Management', () => {
-  let puppeteerModule: any;
+  let mockPage: jest.Mocked<puppeteer.Page>;
+  let mockBrowser: jest.Mocked<puppeteer.Browser>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.resetModules();
-  });
+    jest.clearAllMocks(); jest.resetModules();
+    // Mock BrowserPool.getBrowser method
+    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
 
-  beforeAll(async () => {
-    puppeteerModule = await import('puppeteer');
+    // Setup launch mock to return our mock browser
+    (puppeteer.launch as jest.Mock).mockClear();
+    (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
+
+    // Create mock page with resolved methods
+    mockPage = {
+      goto: jest.fn().mockResolvedValue({ status: () => 200 }),
+      title: jest.fn().mockResolvedValue('Test Page'),
+      evaluate: jest.fn().mockResolvedValue({}),
+      close: jest.fn().mockResolvedValue(undefined),
+      setViewport: jest.fn().mockResolvedValue(undefined),
+      setUserAgent: jest.fn().mockResolvedValue(undefined),
+      setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+      waitForFunction: jest.fn().mockResolvedValue(undefined),
+    } as jest.Mocked<puppeteer.Page>;
+
+    // Create mock browser with resolved methods
+    mockBrowser = {
+      newPage: jest.fn().mockResolvedValue(mockPage),
+      close: jest.fn().mockResolvedValue(undefined),
+      isConnected: jest.fn().mockReturnValue(true),
+    } as jest.Mocked<puppeteer.Browser>;
+
+    // Setup launch mock to return our mock browser
+    (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
   });
 
   describe('initializeBrowserPool', () => {
     it('should initialize browser pool successfully', async () => {
       // Mock successful browser launches
-      (puppeteerModule.launch as jest.Mock)
+      (puppeteer.launch as jest.Mock)
         .mockResolvedValueOnce(mockBrowser)
         .mockResolvedValueOnce(mockBrowser)
         .mockResolvedValueOnce(mockBrowser);
@@ -30,12 +54,12 @@ describe('Browser Pool Management', () => {
       await expect(initializeBrowserPool()).resolves.toBeUndefined();
 
       // Should launch 3 browsers for the pool
-      expect(puppeteerModule.launch).toHaveBeenCalledTimes(3);
+      expect(puppeteer.launch).toHaveBeenCalledTimes(3);
     });
 
     it('should handle browser launch failures gracefully', async () => {
       // Mock some browsers failing to launch
-      (puppeteerModule.launch as jest.Mock)
+      (puppeteer.launch as jest.Mock)
         .mockResolvedValueOnce(mockBrowser)
         .mockRejectedValueOnce(new Error('Launch failed'))
         .mockResolvedValueOnce(mockBrowser);
@@ -43,17 +67,17 @@ describe('Browser Pool Management', () => {
       // Should not throw even if some browsers fail
       await expect(initializeBrowserPool()).resolves.toBeUndefined();
 
-      expect(puppeteerModule.launch).toHaveBeenCalledTimes(3);
+      expect(puppeteer.launch).toHaveBeenCalledTimes(3);
     });
 
     it('should not reinitialize if already initialized', async () => {
       // First initialization
       await initializeBrowserPool();
-      const firstCallCount = (puppeteerModule.launch as jest.Mock).mock.calls.length;
+      const firstCallCount = (puppeteer.launch as jest.Mock).mock.calls.length;
 
       // Second call should not launch more browsers
       await initializeBrowserPool();
-      const secondCallCount = (puppeteerModule.launch as jest.Mock).mock.calls.length;
+      const secondCallCount = (puppeteer.launch as jest.Mock).mock.calls.length;
 
       expect(secondCallCount).toBe(firstCallCount);
     });
@@ -61,7 +85,7 @@ describe('Browser Pool Management', () => {
     it('should use correct browser configuration', async () => {
       await initializeBrowserPool();
 
-      expect(puppeteerModule.launch).toHaveBeenCalledWith(
+      expect(puppeteer.launch).toHaveBeenCalledWith(
         expect.objectContaining({
           headless: true,
           timeout: 30000,
@@ -85,8 +109,8 @@ describe('Browser Pool Management', () => {
       const scraperModule = await import('../../services/genericScraper');
       
       // Mock fresh browsers for each test
-      (puppeteerModule.launch as jest.Mock).mockClear();
-      (puppeteerModule.launch as jest.Mock).mockResolvedValue(mockBrowser);
+      (puppeteer.launch as jest.Mock).mockClear();
+      (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
     });
 
     it('should retrieve browsers from pool during scraping', async () => {
@@ -108,7 +132,7 @@ describe('Browser Pool Management', () => {
       await scrapeGeneric('https://example.com', {});
 
       // Should have launched browsers for the pool
-      expect(puppeteerModule.launch).toHaveBeenCalled();
+      expect(puppeteer.launch).toHaveBeenCalled();
     });
 
     it('should handle empty pool by creating emergency browser', async () => {
@@ -116,7 +140,7 @@ describe('Browser Pool Management', () => {
       
       // Mock the scenario where pool is exhausted
       let callCount = 0;
-      (puppeteerModule.launch as jest.Mock).mockImplementation(() => {
+      (puppeteer.launch as jest.Mock).mockImplementation(() => {
         callCount++;
         if (callCount <= 3) {
           // Initial pool browsers
@@ -147,8 +171,8 @@ describe('Browser Pool Management', () => {
       await Promise.all(scrapePromises);
 
       // Should have launched initial pool + some emergency browsers
-      expect(puppeteerModule.launch).toHaveBeenCalledTimes(expect.any(Number));
-      expect((puppeteerModule.launch as jest.Mock).mock.calls.length).toBeGreaterThan(3);
+      expect(puppeteer.launch).toHaveBeenCalledTimes(expect.any(Number));
+      expect((puppeteer.launch as jest.Mock).mock.calls.length).toBeGreaterThan(3);
     });
 
     it('should replenish pool after browser usage', async () => {
@@ -171,7 +195,7 @@ describe('Browser Pool Management', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should have launched browsers for initial pool + replenishment
-      expect(puppeteerModule.launch).toHaveBeenCalled();
+      expect(puppeteer.launch).toHaveBeenCalled();
     });
 
     it('should handle replenishment failures gracefully', async () => {
@@ -179,7 +203,7 @@ describe('Browser Pool Management', () => {
       
       // Mock browser launch to fail during replenishment
       let launchCount = 0;
-      (puppeteerModule.launch as jest.Mock).mockImplementation(() => {
+      (puppeteer.launch as jest.Mock).mockImplementation(() => {
         launchCount++;
         if (launchCount <= 3) {
           // Initial pool browsers succeed
@@ -260,7 +284,7 @@ describe('Browser Pool Management', () => {
       const { scrapeGeneric } = await import('../../services/genericScraper');
       
       // Track browser launches
-      const launchSpy = puppeteerModule.launch as jest.Mock;
+      const launchSpy = puppeteer.launch as jest.Mock;
       launchSpy.mockClear();
 
       mockBrowser.newPage.mockResolvedValue({

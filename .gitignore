@@ -30,3 +30,9 @@ Thumbs.db
 
 # Serena cache
 .serena/
+
+# Test coverage reports
+coverage/
+
+# Temporary test files
+src/__tests__/__mocks__/browserPool.ts

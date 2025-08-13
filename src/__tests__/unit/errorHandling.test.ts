@@ -1,25 +1,48 @@
 import { jest } from '@jest/globals';
-import { scrapeGeneric, scrapeMFC, ScrapeConfig } from '../../services/genericScraper';
-import mockPuppeteer, { mockBrowser, mockPage } from '../__mocks__/puppeteer';
+import puppeteer from 'puppeteer';
+import { scrapeGeneric, scrapeMFC, ScrapeConfig, BrowserPool } from '../../services/genericScraper';
+import { createMockBrowser } from '../__mocks__/puppeteer';
 
-// Mock puppeteer
-jest.mock('puppeteer', () => mockPuppeteer);
+// Centralized Puppeteer mock from moduleNameMapper
 
 describe('Error Handling and Timeout Tests', () => {
+  let mockPage: jest.Mocked<puppeteer.Page>;
+  let mockBrowser: jest.Mocked<puppeteer.Browser>;
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Reset mocks to default successful behavior
-    mockPage.setViewport.mockResolvedValue(undefined);
-    mockPage.setUserAgent.mockResolvedValue(undefined);
-    mockPage.setExtraHTTPHeaders.mockResolvedValue(undefined);
-    mockPage.goto.mockResolvedValue(undefined);
-    mockPage.title.mockResolvedValue('Test Page');
-    mockPage.evaluate.mockResolvedValue({});
-    mockPage.waitForFunction.mockResolvedValue(undefined);
-    mockPage.close.mockResolvedValue(undefined);
-    mockBrowser.newPage.mockResolvedValue(mockPage);
-    mockBrowser.close.mockResolvedValue(undefined);
+    jest.clearAllMocks(); jest.resetModules();
+    // Mock BrowserPool.getBrowser method
+    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
+
+    // Create mock page with resolved methods
+    mockPage = {
+      goto: jest.fn().mockResolvedValue({ status: () => 200 }),
+      title: jest.fn().mockResolvedValue('Test Page'),
+      evaluate: jest.fn().mockResolvedValue({}),
+      close: jest.fn().mockResolvedValue(undefined),
+      setViewport: jest.fn().mockResolvedValue(undefined),
+      setUserAgent: jest.fn().mockResolvedValue(undefined),
+      setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+      waitForFunction: jest.fn().mockResolvedValue(undefined),
+      waitForSelector: jest.fn().mockResolvedValue(undefined),
+      waitForTimeout: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn().mockReturnValue(undefined),
+      $: jest.fn(),
+      $$: jest.fn(),
+    } as jest.Mocked<puppeteer.Page>;
+
+    // Create mock browser with resolved methods
+    mockBrowser = {
+      newPage: jest.fn().mockResolvedValue(mockPage),
+      close: jest.fn().mockResolvedValue(undefined),
+      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue(mockPage),
+      } as any),
+      isConnected: jest.fn().mockReturnValue(true),
+    } as jest.Mocked<puppeteer.Browser>;
+
+    // Setup launch mock to return our mock browser
+    (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
   });
 
   describe('Navigation Timeouts', () => {

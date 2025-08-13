@@ -25,6 +25,11 @@ interface MockPage {
   $$: jest.Mock;
   close: jest.Mock;
   setViewport: jest.Mock;
+  setUserAgent: jest.Mock;
+  setExtraHTTPHeaders: jest.Mock;
+  waitForFunction: jest.Mock;
+  waitForTimeout: jest.Mock;
+  on: jest.Mock;
 }
 
 interface MockBrowser {
@@ -43,7 +48,7 @@ export const createMockElementHandle = (): MockElementHandle => ({
 
 export const createMockPage = (): MockPage => ({
   goto: jest.fn().mockResolvedValue({ status: () => 200 }),
-  content: jest.fn().mockResolvedValue('<html></html>'),
+  content: jest.fn().mockResolvedValue('<html><body>Mock HTML Content</body></html>'),
   title: jest.fn().mockResolvedValue('Mock Page Title'),
   screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot')),
   evaluate: jest.fn().mockResolvedValue({}),
@@ -52,6 +57,11 @@ export const createMockPage = (): MockPage => ({
   $$: jest.fn().mockResolvedValue([createMockElementHandle()]),
   close: jest.fn().mockResolvedValue(undefined),
   setViewport: jest.fn().mockResolvedValue(undefined),
+  setUserAgent: jest.fn().mockResolvedValue(undefined),
+  setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+  waitForFunction: jest.fn().mockResolvedValue(undefined),
+  waitForTimeout: jest.fn().mockResolvedValue(undefined),
+  on: jest.fn().mockReturnThis(),
 });
 
 export const createMockBrowser = (): MockBrowser => ({

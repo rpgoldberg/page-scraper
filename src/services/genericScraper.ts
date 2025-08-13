@@ -40,7 +40,7 @@ export const SITE_CONFIGS = {
   // amiami: { ... }
 };
 
-class BrowserPool {
+export class BrowserPool {
   private static browsers: Browser[] = [];
   private static readonly POOL_SIZE = 3; // Keep 3 browsers ready
   private static isInitialized = false;
