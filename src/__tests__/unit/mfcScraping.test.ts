@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import puppeteer from 'puppeteer';
 import { scrapeMFC, SITE_CONFIGS, scrapeGeneric, BrowserPool } from '../../services/genericScraper';
 import { createMockBrowser } from '../__mocks__/puppeteer';
-import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML } from '../fixtures/test-html';
+import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, CLOUDFLARE_CHALLENGE_VARIATIONS } from '../fixtures/test-html';
 
 // Centralized Puppeteer mock from moduleNameMapper
 
@@ -12,14 +12,26 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks(); jest.resetModules();
-    // Mock BrowserPool.getBrowser method
-    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
 
     // Create mock page with resolved methods
     mockPage = {
       goto: jest.fn().mockResolvedValue({ status: () => 200 }),
       title: jest.fn().mockResolvedValue('Figure Page - My Figure Collection'),
-      evaluate: jest.fn().mockResolvedValue({}),
+      evaluate: jest.fn().mockImplementation((fn, ...args) => {
+        // Handle specific case for document.body.innerText/textContent
+        if (typeof fn === 'function') {
+          const fnString = fn.toString();
+          if (fnString.includes('document.body.innerText') || fnString.includes('document.body.textContent')) {
+            return Promise.resolve('Mock page body text content');
+          }
+          // Handle data extraction calls (they have parameters)
+          if (args.length > 0 || fnString.includes('selectors') || fnString.includes('data')) {
+            return Promise.resolve({});
+          }
+        }
+        // Default behavior for other evaluate calls
+        return Promise.resolve({});
+      }),
       close: jest.fn().mockResolvedValue(undefined),
       setViewport: jest.fn().mockResolvedValue(undefined),
       setUserAgent: jest.fn().mockResolvedValue(undefined),
@@ -44,6 +56,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
     // Setup launch mock to return our mock browser
     (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
+    
+    // Mock BrowserPool.getBrowser method with our custom browser
+    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(mockBrowser);
   });
 
   describe('MFC Configuration Validation', () => {
@@ -67,6 +82,33 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
       expect(mfcConfig.cloudflareDetection?.bodyIncludes).toContain('Just a moment');
     });
 
+    it('should have expanded Cloudflare detection patterns', () => {
+      const mfcConfig = SITE_CONFIGS.mfc;
+      
+      expect(mfcConfig.cloudflareDetection?.titleIncludes).toEqual(
+        expect.arrayContaining([
+          'Just a moment',
+          'Please wait',
+          'Checking your browser',
+          'Security check',
+          'Browser verification'
+        ])
+      );
+      
+      expect(mfcConfig.cloudflareDetection?.bodyIncludes).toEqual(
+        expect.arrayContaining([
+          'Just a moment',
+          'Please wait while we verify',
+          'Checking your browser before accessing',
+          'verify you are a human',
+          'JavaScript required',
+          'DDoS protection',
+          'Performance & security by Cloudflare',
+          'Your browser will redirect automatically'
+        ])
+      );
+    });
+
     it('should use realistic Chrome user agent', () => {
       const mfcConfig = SITE_CONFIGS.mfc;
       const userAgent = mfcConfig.userAgent;
@@ -80,19 +122,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
   describe('MFC DOM Structure Parsing', () => {
     it('should extract image from correct MFC selector', async () => {
-      // Mock MFC-specific DOM structure parsing
-      mockPage.evaluate.mockImplementationOnce((fn) => {
-        // Simulate MFC image extraction
-        const mockDocument = {
-          querySelector: jest.fn().mockReturnValue({
-            src: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
-          }),
-        };
-        
-        // Return what the extraction function would find
-        return {
+      // Mock both cloudflare detection and scraping calls
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
+        return Promise.resolve({
           imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
-        };
+        });
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -101,11 +138,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should extract manufacturer using MFC data-field structure', async () => {
-      mockPage.evaluate.mockImplementationOnce((fn) => {
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
         // Simulate MFC manufacturer extraction from data-field structure
-        return {
+        return Promise.resolve({
           manufacturer: 'Good Smile Company',
-        };
+        });
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -114,11 +154,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should extract character name from MFC structure', async () => {
-      mockPage.evaluate.mockImplementationOnce((fn) => {
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
         // Simulate MFC character name extraction
-        return {
+        return Promise.resolve({
           name: 'Hatsune Miku',
-        };
+        });
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -127,11 +170,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should extract scale from MFC item-scale element', async () => {
-      mockPage.evaluate.mockImplementationOnce((fn) => {
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
         // Simulate scale extraction with regex matching
-        return {
+        return Promise.resolve({
           scale: '1/7',
-        };
+        });
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -147,7 +193,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
         scale: '1/7',
       };
 
-      mockPage.evaluate.mockResolvedValueOnce(completeMFCData);
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
+        return Promise.resolve(completeMFCData);
+      });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
       
@@ -157,7 +208,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
   describe('MFC-Specific Selector Logic', () => {
     it('should handle data-field with label contains logic', async () => {
-      mockPage.evaluate.mockImplementationOnce((extractorFn, config) => {
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce((extractorFn, config) => { // Second call: data extraction
         // Simulate the complex MFC DOM structure
         const mockDataFields = [
           {
@@ -220,7 +273,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle scale extraction with regex pattern', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
         // Simulate scale element with extra text
         const scaleText = 'Premium Figure 1/7 Scale Complete Figure';
         const scaleMatch = scaleText.match(/1\/\d+/);
@@ -236,7 +291,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle missing data fields gracefully', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
         // Simulate MFC page with missing data fields
         return {
           imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
@@ -280,15 +337,97 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     it('should continue after Cloudflare challenge timeout', async () => {
       // Mock Cloudflare challenge with timeout
       mockPage.title.mockResolvedValueOnce('Just a moment...');
-      mockPage.evaluate.mockResolvedValueOnce('Just a moment...');
+      mockPage.evaluate
+        .mockResolvedValueOnce('Just a moment...') // First call: bodyText check
+        .mockResolvedValueOnce({ // Second call: data extraction
+          imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
+        });
       mockPage.waitForFunction.mockRejectedValueOnce(new Error('Challenge timeout'));
-      mockPage.evaluate.mockResolvedValueOnce({
-        imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
-      });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
 
       expect(result.imageUrl).toBeDefined();
+    });
+
+    it('should detect enhanced Cloudflare patterns', async () => {
+      const testCases = [
+        { title: 'Checking your browser', body: 'Checking your browser before accessing' },
+        { title: 'DDoS protection', body: 'DDoS protection by Cloudflare' },
+        { title: 'Security check', body: 'Please enable JavaScript and cookies' },
+        { title: 'Browser verification', body: 'verify you are a human' },
+      ];
+
+      for (const testCase of testCases) {
+        mockPage.title.mockResolvedValueOnce(testCase.title);
+        mockPage.evaluate
+          .mockResolvedValueOnce(testCase.body)
+          .mockResolvedValueOnce({ imageUrl: 'test.jpg' });
+        
+        const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
+        
+        expect(mockPage.waitForFunction).toHaveBeenCalled();
+        expect(result.imageUrl).toBeDefined();
+      }
+    });
+
+    it('should handle fuzzy pattern matching with typos and spacing', async () => {
+      const testCases = [
+        { title: 'Just  a   moment...', body: 'Please wait while  we  verify' },
+        { title: 'Jst a moment', body: 'Please wat while we verify you are human' },
+        { title: 'Checking  your  browser...', body: 'Checking your browsr before accessing' },
+      ];
+
+      for (const testCase of testCases) {
+        mockPage.title.mockResolvedValueOnce(testCase.title);
+        mockPage.evaluate
+          .mockResolvedValueOnce(testCase.body)
+          .mockResolvedValueOnce({ imageUrl: 'test.jpg' });
+        
+        const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
+        
+        expect(mockPage.waitForFunction).toHaveBeenCalled();
+        expect(result.imageUrl).toBeDefined();
+      }
+    });
+
+    it('should detect multilingual Cloudflare patterns', async () => {
+      const testCases = [
+        { title: 'Un moment', body: 'Por favor espere' },
+        { title: 'Bitte warten', body: 'Bitte warten Sie' },
+        { title: 'Espere por favor', body: 'Veuillez patienter' },
+      ];
+
+      for (const testCase of testCases) {
+        mockPage.title.mockResolvedValueOnce(testCase.title);
+        mockPage.evaluate
+          .mockResolvedValueOnce(testCase.body)
+          .mockResolvedValueOnce({ imageUrl: 'test.jpg' });
+        
+        const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
+        
+        expect(mockPage.waitForFunction).toHaveBeenCalled();
+        expect(result.imageUrl).toBeDefined();
+      }
+    });
+
+    it('should detect access denied and blocking patterns', async () => {
+      const testCases = [
+        { title: 'Access denied', body: 'Website is under attack mode' },
+        { title: 'Forbidden', body: 'blocked by security policy' },
+        { title: 'High security', body: 'Browser integrity check' },
+      ];
+
+      for (const testCase of testCases) {
+        mockPage.title.mockResolvedValueOnce(testCase.title);
+        mockPage.evaluate
+          .mockResolvedValueOnce(testCase.body)
+          .mockResolvedValueOnce({ imageUrl: 'test.jpg' });
+        
+        const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
+        
+        expect(mockPage.waitForFunction).toHaveBeenCalled();
+        expect(result.imageUrl).toBeDefined();
+      }
     });
   });
 
@@ -302,9 +441,11 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
     testMFCUrls.forEach((url) => {
       it(`should handle MFC URL format: ${url}`, async () => {
-        mockPage.evaluate.mockResolvedValueOnce({
-          name: 'Test Figure',
-        });
+        mockPage.evaluate
+          .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+          .mockResolvedValueOnce({ // Second call: data extraction
+            name: 'Test Figure',
+          });
 
         const result = await scrapeMFC(url);
 
@@ -347,7 +488,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
     it('should handle MFC maintenance mode', async () => {
       mockPage.title.mockResolvedValueOnce('Maintenance - My Figure Collection');
-      mockPage.evaluate.mockResolvedValueOnce({});
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockResolvedValueOnce({}); // Second call: data extraction
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
 
@@ -358,10 +501,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
   describe('MFC Data Quality and Edge Cases', () => {
     it('should handle figures with multiple manufacturers', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
-        return {
-          manufacturer: 'Good Smile Company, Max Factory',
-        };
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
+          return {
+            manufacturer: 'Good Smile Company, Max Factory',
+          };
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -370,10 +515,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle figures with multiple characters', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
-        return {
-          name: 'Hatsune Miku, Kagamine Rin',
-        };
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
+          return {
+            name: 'Hatsune Miku, Kagamine Rin',
+          };
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -391,7 +538,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
       ];
 
       for (const scale of nonStandardScales) {
-        mockPage.evaluate.mockResolvedValueOnce({ scale });
+        mockPage.evaluate
+          .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+          .mockResolvedValueOnce({ scale }); // Second call: data extraction
         
         const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
         expect(result.scale).toBe(scale);
@@ -399,12 +548,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle figures with no image', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
-        return {
-          manufacturer: 'Good Smile Company',
-          name: 'Hatsune Miku',
-          scale: '1/7',
-          // imageUrl is missing
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
+          return {
+            manufacturer: 'Good Smile Company',
+            name: 'Hatsune Miku',
+            scale: '1/7',
+            // imageUrl is missing
         };
       });
 
@@ -415,10 +566,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle MFC placeholder images', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
-        return {
-          imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/placeholder.jpg',
-        };
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
+          return {
+            imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/placeholder.jpg',
+          };
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -434,10 +587,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should complete MFC scraping within reasonable time', async () => {
-      mockPage.evaluate.mockResolvedValueOnce({
-        imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
-        manufacturer: 'Good Smile Company',
-        name: 'Hatsune Miku',
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockResolvedValueOnce({ // Second call: data extraction
+          imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
+          manufacturer: 'Good Smile Company',
+          name: 'Hatsune Miku',
         scale: '1/7',
       });
 
@@ -452,20 +607,21 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
   describe('MFC Integration with Generic Scraper', () => {
     it('should use generic scraper with MFC config', async () => {
-      const spy = jest.spyOn({ scrapeGeneric }, 'scrapeGeneric');
-      
-      mockPage.evaluate.mockResolvedValueOnce({ name: 'Test Figure' });
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockResolvedValueOnce({ name: 'Test Figure' }); // Second call: data extraction
 
-      await scrapeMFC('https://myfigurecollection.net/item/123456');
+      const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
 
-      expect(scrapeGeneric).toHaveBeenCalledWith(
-        'https://myfigurecollection.net/item/123456',
-        SITE_CONFIGS.mfc
-      );
+      // Verify that the MFC configuration was used by checking the result
+      expect(result.name).toBe('Test Figure');
+      expect(mockPage.setUserAgent).toHaveBeenCalledWith(SITE_CONFIGS.mfc.userAgent);
     });
 
     it('should pass through all MFC configuration options', async () => {
-      mockPage.evaluate.mockResolvedValueOnce({});
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockResolvedValueOnce({}); // Second call: data extraction
 
       await scrapeMFC('https://myfigurecollection.net/item/123456');
 
@@ -476,9 +632,12 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
   describe('MFC Selector Robustness', () => {
     it('should handle MFC DOM structure changes gracefully', async () => {
       // Simulate changed DOM structure where selectors don't match
-      mockPage.evaluate.mockImplementationOnce(() => {
+      mockPage.evaluate.mockImplementation((fn) => {
+        if (fn.toString().includes('document.body.innerText')) {
+          return Promise.resolve('Normal page content text');
+        }
         // Return empty object as if selectors didn't find anything
-        return {};
+        return Promise.resolve({});
       });
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
@@ -487,12 +646,14 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     });
 
     it('should handle partial data extraction', async () => {
-      mockPage.evaluate.mockImplementationOnce(() => {
-        // Only some fields are found
-        return {
-          imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
-          name: 'Hatsune Miku',
-          // manufacturer and scale missing
+      mockPage.evaluate
+        .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
+        .mockImplementationOnce(() => { // Second call: data extraction
+          // Only some fields are found
+          return {
+            imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
+            name: 'Hatsune Miku',
+            // manufacturer and scale missing
         };
       });
 

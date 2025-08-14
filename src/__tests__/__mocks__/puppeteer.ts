@@ -51,7 +51,21 @@ export const createMockPage = (): MockPage => ({
   content: jest.fn().mockResolvedValue('<html><body>Mock HTML Content</body></html>'),
   title: jest.fn().mockResolvedValue('Mock Page Title'),
   screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot')),
-  evaluate: jest.fn().mockResolvedValue({}),
+  evaluate: jest.fn().mockImplementation((fn, ...args) => {
+    // Handle specific case for document.body.innerText/textContent
+    if (typeof fn === 'function') {
+      const fnString = fn.toString();
+      if (fnString.includes('document.body.innerText') || fnString.includes('document.body.textContent')) {
+        return Promise.resolve('Mock page body text content');
+      }
+      // Handle data extraction calls (they have parameters)
+      if (args.length > 0 || fnString.includes('selectors') || fnString.includes('data')) {
+        return Promise.resolve({});
+      }
+    }
+    // Default behavior for other evaluate calls
+    return Promise.resolve({});
+  }),
   waitForSelector: jest.fn().mockResolvedValue(createMockElementHandle()),
   $: jest.fn().mockResolvedValue(createMockElementHandle()),
   $$: jest.fn().mockResolvedValue([createMockElementHandle()]),
@@ -78,12 +92,12 @@ const mockPuppeteer = {
     const browser = createMockBrowser();
     return Promise.resolve(browser);
   }),
-  defaultViewport: null,
+  defaultViewport: { width: 1280, height: 800 },
   connect: jest.fn(),
   
   // Static type compatibility
-  Browser: jest.fn(),
-  Page: jest.fn(),
+  Browser: jest.fn().mockReturnValue(createMockBrowser()),
+  Page: jest.fn().mockReturnValue(createMockPage()),
 };
 
 export default mockPuppeteer;

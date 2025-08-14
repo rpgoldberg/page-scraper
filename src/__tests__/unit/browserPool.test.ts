@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import puppeteer from 'puppeteer';
-import { initializeBrowserPool, BrowserPool } from '../../services/genericScraper';
+import { initializeBrowserPool, BrowserPool, scrapeGeneric } from '../../services/genericScraper';
 import { createMockBrowser } from '../__mocks__/puppeteer';
 
 // Centralized Puppeteer mock from moduleNameMapper
@@ -12,9 +12,13 @@ describe('Browser Pool Management', () => {
   let mockBrowser: jest.Mocked<puppeteer.Browser>;
 
   beforeEach(() => {
-    jest.clearAllMocks(); jest.resetModules();
-    // Mock BrowserPool.getBrowser method
-    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
+    jest.clearAllMocks(); 
+    jest.resetModules();
+    
+    // Comprehensive reset using new reset method
+    BrowserPool.reset();
+    
+    // Don't mock BrowserPool.getBrowser for these tests - let it use the real implementation
 
     // Setup launch mock to return our mock browser
     (puppeteer.launch as jest.Mock).mockClear();
@@ -102,11 +106,8 @@ describe('Browser Pool Management', () => {
 
   describe('Browser Pool Operations', () => {
     beforeEach(async () => {
-      // Reset the module to get a fresh BrowserPool instance
-      jest.resetModules();
-      
-      // Re-import the module
-      const scraperModule = await import('../../services/genericScraper');
+      // Comprehensive reset using new reset method
+      BrowserPool.reset();
       
       // Mock fresh browsers for each test
       (puppeteer.launch as jest.Mock).mockClear();
@@ -114,18 +115,12 @@ describe('Browser Pool Management', () => {
     });
 
     it('should retrieve browsers from pool during scraping', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
       
       // Mock the page.evaluate to return quickly
       mockBrowser.newPage.mockResolvedValue({
-        ...mockBrowser.newPage(),
-        setViewport: jest.fn().mockResolvedValue(undefined),
-        setUserAgent: jest.fn().mockResolvedValue(undefined),
-        setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+        ...mockPage,
         goto: jest.fn().mockResolvedValue(undefined),
-        title: jest.fn().mockResolvedValue('Test Page'),
         evaluate: jest.fn().mockResolvedValue({}),
-        close: jest.fn().mockResolvedValue(undefined),
       });
 
       // This should trigger browser pool initialization and usage
@@ -136,7 +131,7 @@ describe('Browser Pool Management', () => {
     });
 
     it('should handle empty pool by creating emergency browser', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
+      // Using static import from top of file
       
       // Mock the scenario where pool is exhausted
       let callCount = 0;
@@ -171,12 +166,14 @@ describe('Browser Pool Management', () => {
       await Promise.all(scrapePromises);
 
       // Should have launched initial pool + some emergency browsers
-      expect(puppeteer.launch).toHaveBeenCalledTimes(expect.any(Number));
-      expect((puppeteer.launch as jest.Mock).mock.calls.length).toBeGreaterThan(3);
+      // Assert emergency browser launches are controlled and reasonable
+      const launchCount = (puppeteer.launch as jest.Mock).mock.calls.length;
+      expect(launchCount).toBeGreaterThan(3);
+      expect(launchCount).toBeLessThan(10); // Reasonable emergency browser limit
     });
 
     it('should replenish pool after browser usage', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
+      // Using static import from top of file
       
       // Mock successful scraping
       mockBrowser.newPage.mockResolvedValue({
@@ -199,7 +196,7 @@ describe('Browser Pool Management', () => {
     });
 
     it('should handle replenishment failures gracefully', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
+      // Using static import from top of file
       
       // Mock browser launch to fail during replenishment
       let launchCount = 0;
@@ -238,50 +235,72 @@ describe('Browser Pool Management', () => {
     });
 
     it('should handle browser close errors during shutdown', async () => {
-      // Mock browser close to fail
-      mockBrowser.close.mockRejectedValueOnce(new Error('Close failed'));
+      // Simulate a browser close failure with comprehensive error handling
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorMessage = 'Close failed';
+      mockBrowser.close.mockRejectedValueOnce(new Error(errorMessage));
 
-      // The close operation should be resilient to failures
-      await expect(mockBrowser.close()).rejects.toThrow('Close failed');
+      try {
+        await expect(mockBrowser.close()).rejects.toThrow(errorMessage);
+      } finally {
+        // Verify error was logged with more flexible matching
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/(?:Failed|Error).*close.*browser/i)
+        );
+        errorSpy.mockRestore();
+      }
       
-      // But the pool should still attempt to close other browsers
+      // The pool should attempt to close browsers despite errors
       expect(mockBrowser.close).toHaveBeenCalled();
     });
   });
 
   describe('Concurrent Access', () => {
     it('should handle multiple concurrent scraping requests', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
+      // Enhanced concurrent scraping test with improved verification
+      jest.setTimeout(20000); // Increase timeout for many concurrent operations
       
-      // Mock page creation for concurrent access
-      const mockPage = {
+      // Mock page creation for concurrent access with more robust mocking
+      const createMockPage = (index: number) => ({
         setViewport: jest.fn().mockResolvedValue(undefined),
         setUserAgent: jest.fn().mockResolvedValue(undefined),
         setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
         goto: jest.fn().mockResolvedValue(undefined),
-        title: jest.fn().mockResolvedValue('Concurrent Page'),
-        evaluate: jest.fn().mockResolvedValue({ concurrent: true }),
+        title: jest.fn().mockResolvedValue(`Concurrent Page ${index}`),
+        evaluate: jest.fn().mockResolvedValue({ concurrent: true, index }),
         close: jest.fn().mockResolvedValue(undefined),
-      };
+      });
 
-      mockBrowser.newPage.mockResolvedValue(mockPage);
+      // Create multiple unique mock pages
+      const mockPages = Array(10).fill(0).map((_, i) => createMockPage(i));
+
+      // Cycle through mock pages to simulate pool behavior
+      mockBrowser.newPage.mockImplementation(() => {
+        const page = mockPages.pop() || mockPages[0];
+        return Promise.resolve(page);
+      });
 
       // Start multiple scraping operations concurrently
       const concurrentScrapes = Array(10).fill(0).map((_, i) =>
-        scrapeGeneric(`https://example.com/concurrent${i}`, { nameSelector: '.name' })
+        scrapeGeneric(`https://example.com/concurrent${i}`, { nameSelector: `.name-${i}` })
       );
 
       const results = await Promise.all(concurrentScrapes);
 
-      // All should complete successfully
+      // Comprehensive result verification
       expect(results).toHaveLength(10);
+      const uniqueResults = new Set(results.map(r => JSON.stringify(r)));
+      expect(uniqueResults.size).toBeGreaterThan(1); // Ensure some variation
       results.forEach(result => {
-        expect(result).toEqual({ concurrent: true });
+        expect(result).toHaveProperty('concurrent', true);
       });
+
+      // Verify browser pool management during concurrent operations
+      expect(mockBrowser.newPage).toHaveBeenCalledTimes(10);
     });
 
     it('should maintain pool size under concurrent load', async () => {
-      const { scrapeGeneric } = await import('../../services/genericScraper');
+      // Using static import from top of file
       
       // Track browser launches
       const launchSpy = puppeteer.launch as jest.Mock;
@@ -304,10 +323,10 @@ describe('Browser Pool Management', () => {
 
       await Promise.all(heavyLoad);
 
-      // Should have launched browsers but not excessively
-      expect(launchSpy.mock.calls.length).toBeGreaterThan(0);
-      // The exact number depends on timing, but shouldn't be excessive
-      expect(launchSpy.mock.calls.length).toBeLessThan(25);
+      // Strict pool size management
+      const launchCount = launchSpy.mock.calls.length;
+      expect(launchCount).toBeGreaterThan(0);
+      expect(launchCount).toBeLessThan(8); // Tighter constraint for browser pool
     });
   });
 });

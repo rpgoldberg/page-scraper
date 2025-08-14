@@ -9,11 +9,42 @@ jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
 describe('Puppeteer Automation Tests', () => {
   let browser: Browser;
   let page: Page;
+  let mockPage: any;
+  let mockBrowser: any;
 
   beforeEach(() => {
     jest.clearAllMocks(); jest.resetModules();
+    
+    // Create mock page with all needed methods
+    mockPage = {
+      goto: jest.fn().mockResolvedValue({ status: () => 200 }),
+      content: jest.fn().mockResolvedValue('<html><body>Mock Content</body></html>'),
+      title: jest.fn().mockResolvedValue('Mock Page Title'),
+      screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot')),
+      evaluate: jest.fn().mockResolvedValue({}),
+      waitForSelector: jest.fn().mockResolvedValue(null),
+      $: jest.fn().mockResolvedValue(null),
+      $$: jest.fn().mockResolvedValue([]),
+      close: jest.fn().mockResolvedValue(undefined),
+      setViewport: jest.fn().mockResolvedValue(undefined),
+      setUserAgent: jest.fn().mockResolvedValue(undefined),
+      setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+      waitForFunction: jest.fn().mockResolvedValue(undefined),
+      waitForTimeout: jest.fn().mockResolvedValue(undefined),
+      on: jest.fn().mockReturnThis(),
+    };
+
+    // Create mock browser
+    mockBrowser = {
+      newPage: jest.fn().mockResolvedValue(mockPage),
+      close: jest.fn().mockResolvedValue(undefined),
+      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue(mockPage),
+      }),
+    };
+    
     // Re-setup the mock for each test
-    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(createMockBrowser());
+    jest.spyOn(BrowserPool, 'getBrowser').mockResolvedValue(mockBrowser);
   });
 
   describe('Browser Configuration', () => {
