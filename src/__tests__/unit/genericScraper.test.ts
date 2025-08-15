@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
+import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
 import { scrapeGeneric, scrapeMFC, SITE_CONFIGS, ScrapeConfig, BrowserPool } from '../../services/genericScraper';
+import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
 
 // Mock entire Puppeteer module
@@ -53,6 +55,32 @@ describe('genericScraper', () => {
   // using mockPage and mockBrowser for interactions
   
   // Tests use the same structure as before, just with the new typed mocks
+  describe('Generic HTML Parsing', () => {
+    it('should parse generic product HTML with Cheerio', () => {
+      const $ = cheerio.load(GENERIC_PRODUCT_HTML);
+      
+      const imageUrl = $('.product-image img').attr('src');
+      const manufacturer = $('.manufacturer').text().trim();
+      const productName = $('.product-name').text().trim();
+      const scaleInfo = $('.scale-info').text().trim();
+      
+      expect(imageUrl).toBe('https://example.com/product.jpg');
+      expect(manufacturer).toBe('Test Manufacturer');
+      expect(productName).toBe('Test Product Name');
+      expect(scaleInfo).toBe('1/8 Scale');
+    });
+
+    it('should gracefully handle missing HTML elements', () => {
+      const $ = cheerio.load('<html><body></body></html>');
+      
+      const imageUrl = $('.product-image img').attr('src');
+      const manufacturer = $('.manufacturer').text().trim();
+      
+      expect(imageUrl).toBeUndefined();
+      expect(manufacturer).toBe('');
+    });
+  });
+
   describe('SITE_CONFIGS', () => {
     it('should contain MFC configuration', () => {
       expect(SITE_CONFIGS.mfc).toBeDefined();

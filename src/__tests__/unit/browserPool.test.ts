@@ -256,6 +256,115 @@ describe('Browser Pool Management', () => {
   });
 
   describe('Concurrent Access', () => {
+    it('should provide fair browser allocation under heavy load', async () => {
+      // Simulate a more complex concurrent scraping scenario
+      const concurrentRequests = 15; // Higher than pool size
+      const startTimes = new Array(concurrentRequests).fill(0);
+      const endTimes = new Array(concurrentRequests).fill(0);
+
+      // Create mock pages with varied processing times
+      const createMockPageWithDelay = (index: number) => ({
+        setViewport: jest.fn().mockResolvedValue(undefined),
+        setUserAgent: jest.fn().mockResolvedValue(undefined),
+        setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+        goto: jest.fn().mockImplementation(async () => {
+          // Simulate varied network conditions
+          await new Promise(resolve => setTimeout(resolve, 50 * index));
+          return { status: () => 200 };
+        }),
+        title: jest.fn().mockResolvedValue(`Concurrent Page ${index}`),
+        evaluate: jest.fn().mockImplementation(async () => {
+          // Simulate complex extraction with varied processing times
+          await new Promise(resolve => setTimeout(resolve, 100 * index));
+          return { index, concurrent: true };
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+      });
+
+      // Pregenerate mock pages to simulate realistic browser pool behavior
+      const mockPages = Array(concurrentRequests).fill(0).map((_, i) => createMockPageWithDelay(i));
+
+      // Cycle through pages, simulating pool exhaustion and reuse
+      mockBrowser.newPage.mockImplementation(() => {
+        const page = mockPages.pop() || mockPages[0];
+        return Promise.resolve(page);
+      });
+
+      // Start concurrent scraping operations
+      const concurrentScrapes = Array(concurrentRequests).fill(0).map(async (_, i) => {
+        startTimes[i] = Date.now();
+        const result = await scrapeGeneric(`https://example.com/concurrent${i}`, {});
+        endTimes[i] = Date.now();
+        return result;
+      });
+
+      const results = await Promise.all(concurrentScrapes);
+
+      // Validate results
+      expect(results).toHaveLength(concurrentRequests);
+      results.forEach((result, index) => {
+        expect(result).toEqual({ index, concurrent: true });
+      });
+
+      // Ensure most requests complete within a reasonable timeframe
+      const maxExecutionTime = Math.max(...endTimes.map((end, i) => end - startTimes[i]));
+      expect(maxExecutionTime).toBeLessThan(2000); // Should complete within 2 seconds
+
+      // Verify browser page allocation and management
+      expect(mockBrowser.newPage).toHaveBeenCalledTimes(concurrentRequests);
+    });
+
+    it('should handle resource contention and backpressure', async () => {
+      // Simulate a scenario with extreme resource constraints
+      const mockResourceLimitedPages = Array(10).fill(0).map((_, index) => ({
+        setViewport: jest.fn().mockResolvedValue(undefined),
+        setUserAgent: jest.fn().mockResolvedValue(undefined),
+        setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
+        goto: jest.fn().mockImplementation(async () => {
+          // Simulate intermittent resource constraints
+          if (Math.random() < 0.3) { // 30% chance of slower response
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          return { status: () => 200 };
+        }),
+        title: jest.fn().mockResolvedValue(`Constrained Page ${index}`),
+        evaluate: jest.fn().mockImplementation(async () => {
+          // Simulate variable extraction performance
+          if (Math.random() < 0.2) { // 20% chance of extraction failure
+            throw new Error('Resource extraction failed');
+          }
+          return { resourceConstrained: true };
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+      }));
+
+      // Setup browser to cycle through constrained pages
+      mockBrowser.newPage.mockImplementation(() => {
+        const page = mockResourceLimitedPages.pop() || mockResourceLimitedPages[0];
+        return Promise.resolve(page);
+      });
+
+      const concurrentRequests = 15;
+      const scrapePromises = Array(concurrentRequests).fill(0).map(async (_, i) => {
+        try {
+          return await scrapeGeneric(`https://constrained.example.com/page${i}`, {});
+        } catch (error) {
+          // We expect some failures due to resource constraints
+          return { error: error.message };
+        }
+      });
+
+      const results = await Promise.allSettled(scrapePromises);
+
+      // Validate mixed results: some successful, some failed
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failureCount = results.filter(r => r.status === 'rejected').length;
+
+      expect(successCount).toBeGreaterThan(0);
+      expect(failureCount).toBeGreaterThan(0);
+      expect(successCount + failureCount).toBe(concurrentRequests);
+    });
+
     it('should handle multiple concurrent scraping requests', async () => {
       // Enhanced concurrent scraping test with improved verification
       jest.setTimeout(20000); // Increase timeout for many concurrent operations

@@ -397,6 +397,81 @@ describe('Puppeteer Automation Tests', () => {
   });
 
   describe('Error Recovery', () => {
+    it('should handle progressive degradation of browser resources', async () => {
+      // Simulate progressive deterioration of browser state
+      let browserCallCount = 0;
+      mockBrowser.newPage.mockImplementation(() => {
+        browserCallCount++;
+        if (browserCallCount === 1) {
+          return Promise.resolve({
+            ...mockPage,
+            evaluate: jest.fn().mockResolvedValue({ partialData: 'First attempt' }),
+          });
+        } else if (browserCallCount === 2) {
+          return Promise.resolve({
+            ...mockPage,
+            evaluate: jest.fn().mockRejectedValue(new Error('Partial browser degradation')),
+          });
+        } else {
+          throw new Error('Browser pool exhausted');
+        }
+      });
+
+      // We expect some form of partial data or graceful failure
+      const result = await scrapeGeneric('https://example.com', {});
+
+      expect(result).toEqual(expect.objectContaining({
+        partialData: 'First attempt',
+      }));
+
+      // Verify cleanup still occurs
+      expect(mockPage.close).toHaveBeenCalled();
+      expect(mockBrowser.close).toHaveBeenCalled();
+    });
+
+    it('should implement exponential backoff for transient failures', async () => {
+      const config: ScrapeConfig = {
+        retryConfig: {
+          maxRetries: 3,
+          baseDelay: 100, // 100ms initial backoff
+        },
+      };
+
+      // Simulate multiple failure scenarios with increasing complexity
+      const failureScenarios = [
+        { error: new Error('ERR_NETWORK_CHANGED'), retryable: true },
+        { error: new Error('ERR_TEMPORARY_REDIRECT'), retryable: true },
+        { error: new Error('Successful scrape after retries') },
+      ];
+
+      let retryCount = 0;
+      mockPage.goto.mockImplementation(async () => {
+        if (retryCount < failureScenarios.length - 1) {
+          retryCount++;
+          throw failureScenarios[retryCount - 1].error;
+        }
+        return { status: () => 200 };
+      });
+
+      mockPage.evaluate.mockResolvedValueOnce({
+        name: 'Retry Success',
+      });
+
+      const startTime = Date.now();
+      const result = await scrapeGeneric('https://example.com', config);
+      const endTime = Date.now();
+
+      // Verify successful data extraction after retries
+      expect(result).toEqual({
+        name: 'Retry Success',
+      });
+
+      // Validate exponential backoff (rough estimation)
+      const totalRetryTime = endTime - startTime;
+      expect(totalRetryTime).toBeGreaterThan(200); // Should take at least 200ms
+      expect(totalRetryTime).toBeLessThan(1000); // But less than a second
+    });
+
     it('should retry on transient failures', async () => {
       // This would typically involve implementing retry logic
       // For now, we test that errors are properly propagated

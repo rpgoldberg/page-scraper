@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
+import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
 import { scrapeMFC, SITE_CONFIGS, scrapeGeneric, BrowserPool } from '../../services/genericScraper';
+import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, CLOUDFLARE_CHALLENGE_VARIATIONS } from '../fixtures/test-html';
 import { createMockBrowser } from '../__mocks__/puppeteer';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, CLOUDFLARE_CHALLENGE_VARIATIONS } from '../fixtures/test-html';
 
@@ -121,6 +123,88 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
   });
 
   describe('MFC DOM Structure Parsing', () => {
+    it('should parse MFC HTML fixture with Cheerio', () => {
+      const $ = cheerio.load(MFC_FIGURE_HTML);
+      
+      const imageUrl = $('.item-picture .main img').attr('src');
+      const manufacturerElement = $('.data-field').filter((_, el) => 
+        $(el).find('.data-label').text().trim() === 'Company'
+      ).find('.item-entries a span[switch]');
+      const nameElement = $('.data-field').filter((_, el) => 
+        $(el).find('.data-label').text().trim() === 'Character'
+      ).find('.item-entries a span[switch]');
+      const scaleText = $('.item-scale').text().trim();
+      
+      const manufacturer = manufacturerElement.text().trim();
+      const name = nameElement.text().trim();
+      
+      expect(imageUrl).toBe('https://static.myfigurecollection.net/pics/figure/large/123456.jpg');
+      expect(manufacturer).toBe('Good Smile Company');
+      expect(name).toBe('Hatsune Miku');
+      expect(scaleText).toBe('1/7');
+    });
+
+    it('should handle complex MFC DOM structures with nested selectors', () => {
+      const $ = cheerio.load(`
+        <!DOCTYPE html>
+        <html><body>
+          <div class="data-field complex">
+            <div class="data-label">Company</div>
+            <div class="data-value">
+              <div class="item-entries">
+                <a href="/manufacturer/123">
+                  <span switch>Max Factory</span>
+                  <small>(Distributed by Good Smile Company)</small>
+                </a>
+              </div>
+            </div>
+          </div>
+          <div class="item-scale">Limited Edition 1/7 Scale</div>
+        </body></html>
+      `);
+      
+      const manufacturerElement = $('.data-field').filter((_, el) => 
+        $(el).find('.data-label').text().trim() === 'Company'
+      ).find('.item-entries a span[switch]');
+      const scaleText = $('.item-scale').text().trim();
+      
+      const manufacturer = manufacturerElement.text().trim();
+      const scaleMatch = scaleText.match(/1\/\d+/);
+      
+      expect(manufacturer).toBe('Max Factory');
+      expect(scaleMatch?.[0]).toBe('1/7');
+    });
+
+    it('should handle MFC Cloudflare challenge detection with Cheerio', () => {
+      const $ = cheerio.load(CLOUDFLARE_CHALLENGE_HTML);
+      
+      const titleText = $('title').text().trim();
+      const bodyText = $('body div').text().trim();
+      
+      expect(titleText).toBe('Just a moment...');
+      expect(bodyText).toContain('Please wait while we verify');
+    });
+
+    it('should detect various Cloudflare challenge variations', () => {
+      const variations = CLOUDFLARE_CHALLENGE_VARIATIONS;
+      
+      const testVariations = [
+        variations.BROWSER_CHECK,
+        variations.DDOS_PROTECTION,
+        variations.FUZZY_VARIATIONS,
+        variations.MULTILINGUAL,
+        variations.ACCESS_DENIED
+      ];
+      
+      testVariations.forEach((variation) => {
+        const $ = cheerio.load(variation);
+        const titleText = $('title').text().trim();
+        const bodyText = $('body div').text().trim();
+        
+        expect(titleText).toMatch(/moment|check|protection|denied/i);
+        expect(bodyText).toMatch(/wait|verify|check|block|protection/i);
+      });
+    });
     it('should extract image from correct MFC selector', async () => {
       // Mock both cloudflare detection and scraping calls
       mockPage.evaluate.mockImplementation((fn) => {

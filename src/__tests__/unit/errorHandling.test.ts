@@ -335,6 +335,62 @@ describe('Error Handling and Timeout Tests', () => {
   });
 
   describe('Network-related Error Handling', () => {
+    it('should handle partial network interruption with partial data retrieval', async () => {
+      const config: ScrapeConfig = {
+        nameSelector: '.name',
+        imageSelector: '.image',
+      };
+
+      // Simulate a scenario where network interruption occurs during data extraction
+      mockPage.goto.mockResolvedValueOnce({ status: () => 200 });
+      mockPage.evaluate
+        .mockResolvedValueOnce({ name: 'Partial Product' }) // First call succeeds
+        .mockRejectedValueOnce(new Error('Network interruption')); // Second call fails
+
+      const result = await expect(scrapeGeneric('https://example.com', config)).resolves.toEqual({
+        name: 'Partial Product',
+      });
+
+      // Verify error logging or additional handling if needed
+      expect(mockPage.close).toHaveBeenCalled();
+    });
+
+    it('should handle asymmetric network performance and throttling', async () => {
+      const config: ScrapeConfig = {
+        waitTime: 5000, // Extended wait for potential network issues
+        imageSelector: '.image',
+        nameSelector: '.name',
+      };
+
+      // Mock different performance scenarios
+      mockPage.goto.mockImplementationOnce(async () => {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate slow initial load
+        return { status: () => 200 };
+      });
+
+      mockPage.evaluate
+        .mockImplementationOnce(async () => {
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate slow first extraction
+          return { name: 'Throttled Product' };
+        })
+        .mockImplementationOnce(async () => {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Faster second extraction
+          return { imageUrl: 'https://example.com/image.jpg' };
+        });
+
+      const startTime = Date.now();
+      const result = await scrapeGeneric('https://example.com', config);
+      const endTime = Date.now();
+
+      expect(result).toEqual({
+        name: 'Throttled Product',
+        imageUrl: 'https://example.com/image.jpg',
+      });
+
+      // Ensure total time is within reasonable bounds
+      expect(endTime - startTime).toBeLessThan(6000);
+    });
+
     it('should handle network interruption during navigation', async () => {
       const networkError = new Error('ERR_NETWORK_CHANGED');
       mockPage.goto.mockRejectedValueOnce(networkError);
