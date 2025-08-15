@@ -334,7 +334,7 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
       });
     });
 
-    it('should continue after Cloudflare challenge timeout', async () => {
+    it('should handle Cloudflare challenge timeout with robust error recovery', async () => {
       // Mock Cloudflare challenge with timeout
       mockPage.title.mockResolvedValueOnce('Just a moment...');
       mockPage.evaluate
@@ -346,7 +346,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
 
       const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
 
-      expect(result.imageUrl).toBeDefined();
+      expect(result.imageUrl).toBe('https://static.myfigurecollection.net/pics/figure/large/123456.jpg');
+      expect(mockPage.close).toHaveBeenCalledTimes(1);  // Ensure page is closed
+      expect(mockPage.waitForFunction).toHaveBeenCalledTimes(1);  // Verify challenge attempt
     });
 
     it('should detect enhanced Cloudflare patterns', async () => {
@@ -586,22 +588,39 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
       expect(mfcConfig.waitTime).toBe(1000); // Optimized for MFC loading
     });
 
-    it('should complete MFC scraping within reasonable time', async () => {
+    it('should complete MFC scraping within strict performance and resource management parameters', async () => {
       mockPage.evaluate
         .mockResolvedValueOnce('Mock page body text content') // First call: bodyText check
         .mockResolvedValueOnce({ // Second call: data extraction
           imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
           manufacturer: 'Good Smile Company',
           name: 'Hatsune Miku',
+          scale: '1/7',
+        });
+
+      const startTime = performance.now();
+      const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
+      const endTime = performance.now();
+
+      // Comprehensive result validation
+      expect(result).toEqual({
+        imageUrl: 'https://static.myfigurecollection.net/pics/figure/large/123456.jpg',
+        manufacturer: 'Good Smile Company',
+        name: 'Hatsune Miku',
         scale: '1/7',
       });
 
-      const startTime = Date.now();
-      const result = await scrapeMFC('https://myfigurecollection.net/item/123456');
-      const endTime = Date.now();
+      const totalTime = endTime - startTime;
+      expect(totalTime).toBeLessThan(5000); // Should complete within 5 seconds
 
-      expect(result).toBeDefined();
-      expect(endTime - startTime).toBeLessThan(5000); // Should complete within 5 seconds
+      // Resource management assertions
+      expect(mockPage.goto).toHaveBeenCalledTimes(1);
+      expect(mockPage.evaluate).toHaveBeenCalledTimes(2);
+      expect(mockPage.close).toHaveBeenCalledTimes(1);
+      expect(mockPage.setUserAgent).toHaveBeenCalledWith(SITE_CONFIGS.mfc.userAgent);
+
+      // Memory and performance assertions
+      expect(mockBrowser.close).toHaveBeenCalledTimes(1);
     });
   });
 
