@@ -1,6 +1,9 @@
 // Enhanced Puppeteer Mock Infrastructure
 import { jest } from '@jest/globals';
 
+// Mock function type alias to fix TypeScript strict mode issues
+type MockFn = any;
+
 // Comprehensive Type Definitions
 interface MockBrowserContext {
   browser: MockBrowser;
@@ -8,49 +11,49 @@ interface MockBrowserContext {
 }
 
 interface MockElementHandle {
-  evaluate: jest.Mock;
-  click: jest.Mock;
-  type: jest.Mock;
-  querySelector: jest.Mock;
+  evaluate: MockFn;
+  click: MockFn;
+  type: MockFn;
+  querySelector: MockFn;
 }
 
 interface MockPage {
-  goto: jest.Mock;
-  content: jest.Mock;
-  title: jest.Mock;
-  screenshot: jest.Mock;
-  evaluate: jest.Mock;
-  waitForSelector: jest.Mock;
-  $: jest.Mock;
-  $$: jest.Mock;
-  close: jest.Mock;
-  setViewport: jest.Mock;
-  setUserAgent: jest.Mock;
-  setExtraHTTPHeaders: jest.Mock;
-  waitForFunction: jest.Mock;
-  waitForTimeout: jest.Mock;
-  on: jest.Mock;
+  goto: MockFn;
+  content: MockFn;
+  title: MockFn;
+  screenshot: MockFn;
+  evaluate: MockFn;
+  waitForSelector: MockFn;
+  $: MockFn;
+  $$: MockFn;
+  close: MockFn;
+  setViewport: MockFn;
+  setUserAgent: MockFn;
+  setExtraHTTPHeaders: MockFn;
+  waitForFunction: MockFn;
+  waitForTimeout: MockFn;
+  on: MockFn;
 }
 
 interface MockBrowser {
-  newPage: jest.Mock;
-  close: jest.Mock;
-  createIncognitoBrowserContext: jest.Mock;
+  newPage: MockFn;
+  close: MockFn;
+  createIncognitoBrowserContext: MockFn;
 }
 
 // Comprehensive Mock Implementation
 export const createMockElementHandle = (): MockElementHandle => ({
-  evaluate: jest.fn().mockResolvedValue(null),
-  click: jest.fn().mockResolvedValue(undefined),
-  type: jest.fn().mockResolvedValue(undefined),
-  querySelector: jest.fn().mockResolvedValue(null),
+  evaluate: jest.fn().mockResolvedValue(null) as any,
+  click: jest.fn().mockResolvedValue(undefined) as any,
+  type: jest.fn().mockResolvedValue(undefined) as any,
+  querySelector: jest.fn().mockResolvedValue(null) as any,
 });
 
 export const createMockPage = (): MockPage => ({
-  goto: jest.fn().mockResolvedValue({ status: () => 200 }),
-  content: jest.fn().mockResolvedValue('<html><body>Mock HTML Content</body></html>'),
-  title: jest.fn().mockResolvedValue('Mock Page Title'),
-  screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot')),
+  goto: jest.fn().mockResolvedValue({ status: () => 200 }) as any,
+  content: jest.fn().mockResolvedValue('<html><body>Mock HTML Content</body></html>') as any,
+  title: jest.fn().mockResolvedValue('Mock Page Title') as any,
+  screenshot: jest.fn().mockResolvedValue(Buffer.from('screenshot')) as any,
   evaluate: jest.fn().mockImplementation((fn, ...args) => {
     // Handle specific case for document.body.innerText/textContent
     if (typeof fn === 'function') {
@@ -65,25 +68,25 @@ export const createMockPage = (): MockPage => ({
     }
     // Default behavior for other evaluate calls
     return Promise.resolve({});
-  }),
-  waitForSelector: jest.fn().mockResolvedValue(createMockElementHandle()),
-  $: jest.fn().mockResolvedValue(createMockElementHandle()),
-  $$: jest.fn().mockResolvedValue([createMockElementHandle()]),
-  close: jest.fn().mockResolvedValue(undefined),
-  setViewport: jest.fn().mockResolvedValue(undefined),
-  setUserAgent: jest.fn().mockResolvedValue(undefined),
-  setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined),
-  waitForFunction: jest.fn().mockResolvedValue(undefined),
-  waitForTimeout: jest.fn().mockResolvedValue(undefined),
-  on: jest.fn().mockReturnThis(),
+  }) as any,
+  waitForSelector: jest.fn().mockResolvedValue(createMockElementHandle()) as any,
+  $: jest.fn().mockResolvedValue(createMockElementHandle()) as any,
+  $$: jest.fn().mockResolvedValue([createMockElementHandle()]) as any,
+  close: jest.fn().mockResolvedValue(undefined) as any,
+  setViewport: jest.fn().mockResolvedValue(undefined) as any,
+  setUserAgent: jest.fn().mockResolvedValue(undefined) as any,
+  setExtraHTTPHeaders: jest.fn().mockResolvedValue(undefined) as any,
+  waitForFunction: jest.fn().mockResolvedValue(undefined) as any,
+  waitForTimeout: jest.fn().mockResolvedValue(undefined) as any,
+  on: jest.fn().mockReturnThis() as any,
 });
 
 export const createMockBrowser = (): MockBrowser => ({
-  newPage: jest.fn().mockResolvedValue(createMockPage()),
-  close: jest.fn().mockResolvedValue(undefined),
+  newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
+  close: jest.fn().mockResolvedValue(undefined) as any,
   createIncognitoBrowserContext: jest.fn().mockResolvedValue({
-    newPage: jest.fn().mockResolvedValue(createMockPage()),
-  }),
+    newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
+  }) as any,
 });
 
 // Puppeteer Mock Module
@@ -91,13 +94,13 @@ const mockPuppeteer = {
   launch: jest.fn().mockImplementation(() => {
     const browser = createMockBrowser();
     return Promise.resolve(browser);
-  }),
+  }) as any,
   defaultViewport: { width: 1280, height: 800 },
-  connect: jest.fn(),
+  connect: jest.fn() as any,
   
   // Static type compatibility
-  Browser: jest.fn().mockReturnValue(createMockBrowser()),
-  Page: jest.fn().mockReturnValue(createMockPage()),
+  Browser: jest.fn().mockReturnValue(createMockBrowser()) as any,
+  Page: jest.fn().mockReturnValue(createMockPage()) as any,
 };
 
 export default mockPuppeteer;

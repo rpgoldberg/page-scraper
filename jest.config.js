@@ -13,7 +13,12 @@ module.exports = {
     '/__tests__/setup.ts'
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\.ts$': ['ts-jest', {
+      tsconfig: '<rootDir>/tsconfig.test.json',
+      diagnostics: {
+        warnOnly: true
+      }
+    }]
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -44,13 +49,5 @@ module.exports = {
   bail: 1,
   verbose: true,
   
-  // TypeScript Compilation Options
-  globals: {
-    'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.json',
-      diagnostics: {
-        warnOnly: true
-      }
-    }
-  }
+
 };

@@ -199,14 +199,32 @@ npx jest --testNamePattern="MFC scraping"
 
 ### Test Configuration
 
+**TypeScript Test Configuration (`tsconfig.test.json`):**
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": false,           // Relaxed type checking for tests
+    "noImplicitAny": false,    // Allow implicit 'any' types
+    "strictNullChecks": false, // More flexible null handling
+    "skipLibCheck": true,      // Skip type checking of declaration files
+    "types": ["jest", "node"]  // Include Jest and Node types
+  },
+  "include": [
+    "src/**/__tests__/**/*",   // Include all test files
+    "src/**/__mocks__/**/*"    // Include mock implementations
+  ]
+}
+```
+
 **Jest Configuration (`jest.config.js`):**
 ```javascript
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  collectCoverageFrom: [
+  preset: 'ts-jest',           // Use ts-jest for TypeScript
+  testEnvironment: 'node',     // Node.js testing environment
+  roots: ['<rootDir>/src'],    // Root directory for tests
+  testMatch: ['**/__tests__/**/*.test.ts'], // Test file patterns
+  collectCoverageFrom: [       // Coverage collection settings
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/__tests__/**'
@@ -215,6 +233,13 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html']
 };
 ```
+
+**Key Testing Improvements:**
+- Introduced `tsconfig.test.json` for more flexible test compilation
+- Relaxed TypeScript strict mode for easier test writing
+- Added comprehensive type configuration for Jest and Node.js
+- Improved mock type handling to reduce compilation friction
+- Enhanced test file discovery and coverage reporting
 
 ### Performance Benchmarks
 

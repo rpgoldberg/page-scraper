@@ -3,7 +3,6 @@ import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
 import { scrapeGeneric, scrapeMFC, SITE_CONFIGS, ScrapeConfig, BrowserPool } from '../../services/genericScraper';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
-import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
 
 // Mock entire Puppeteer module
 jest.mock('puppeteer', () => ({

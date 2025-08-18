@@ -4,7 +4,6 @@ import puppeteer from 'puppeteer';
 import { scrapeMFC, SITE_CONFIGS, scrapeGeneric, BrowserPool } from '../../services/genericScraper';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, CLOUDFLARE_CHALLENGE_VARIATIONS } from '../fixtures/test-html';
 import { createMockBrowser } from '../__mocks__/puppeteer';
-import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, CLOUDFLARE_CHALLENGE_VARIATIONS } from '../fixtures/test-html';
 
 // Centralized Puppeteer mock from moduleNameMapper
 

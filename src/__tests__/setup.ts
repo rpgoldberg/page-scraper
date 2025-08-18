@@ -19,6 +19,23 @@ process.env.PORT = '0'; // Use random port for tests
 // Global test timeout
 jest.setTimeout(30000);
 
+// Docker container for integration tests
+export async function createMockDockerContainer() {
+  const { GenericContainer } = await import('testcontainers');
+  
+  const container = await new GenericContainer('node:16')
+    .withExposedPorts(3001)
+    .start();
+
+  return {
+    container,
+    port: container.getMappedPort(3001),
+    stop: async () => {
+      await container.stop();
+    }
+  };
+}
+
 // Reset all mocks before each test
 beforeEach(() => {
   resetAllMocks();
