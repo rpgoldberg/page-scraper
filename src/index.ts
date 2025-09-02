@@ -44,6 +44,52 @@ app.get('/version', (req, res) => {
 // Scraper routes (no /api prefix for consistency)
 app.use('/', scraperRoutes);
 
+// Version registration with version manager
+const registerWithVersionManager = async () => {
+  const versionManagerPort = process.env.VERSION_MANAGER_PORT || '3001';
+  const versionManagerHost = process.env.VERSION_MANAGER_HOST || 'version-manager';
+  const versionManagerUrl = process.env.VERSION_MANAGER_URL || `http://${versionManagerHost}:${versionManagerPort}`;
+  
+  const registrationData = {
+    serviceId: 'page-scraper',
+    name: 'Page Scraper Service',
+    version: packageJson.version,
+    endpoints: {
+      health: `http://page-scraper:${PORT}/health`,
+      version: `http://page-scraper:${PORT}/version`,
+      scrape: `http://page-scraper:${PORT}/scrape`,
+      scrapeMfc: `http://page-scraper:${PORT}/scrape/mfc`,
+      configs: `http://page-scraper:${PORT}/configs`
+    },
+    dependencies: {
+      // Page scraper typically has no direct service dependencies
+      // It can work standalone but may be called by backend
+    }
+  };
+
+  try {
+    const response = await fetch(`${versionManagerUrl}/services/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(registrationData)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`[PAGE-SCRAPER] Successfully registered with version manager:`, result.service);
+    } else {
+      const error = await response.text();
+      console.warn(`[PAGE-SCRAPER] Failed to register with version manager: ${response.status} - ${error}`);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn(`[PAGE-SCRAPER] Version manager registration failed:`, errorMessage);
+    console.warn(`[PAGE-SCRAPER] Service will continue without version manager registration`);
+  }
+};
+
 // Start server and initialize browser pool
 app.listen(PORT, async () => {
   console.log(`[PAGE-SCRAPER] Server running on port ${PORT}`);
@@ -57,6 +103,10 @@ app.listen(PORT, async () => {
   } catch (error) {
     console.error('[PAGE-SCRAPER] Failed to initialize browser pool:', error);
   }
+
+  // Register with version manager
+  console.log('[PAGE-SCRAPER] Registering with version manager...');
+  await registerWithVersionManager();
 });
 
 // Graceful shutdown
@@ -69,3 +119,6 @@ process.on('SIGINT', () => {
   console.log('[PAGE-SCRAPER] Received SIGINT, shutting down gracefully');
   process.exit(0);
 });
+
+// Export app for testing
+export default app;
