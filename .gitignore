@@ -3,6 +3,16 @@ node_modules/
 
 # Build outputs
 /dist
+# Compiled TypeScript files
+index.js
+index.js.map
+routes/*.js
+routes/*.js.map
+services/*.js
+services/*.js.map
+# Keep configuration JS files
+!jest.config.js
+!test-summary.js
 
 # Environment variables
 .env
