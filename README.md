@@ -88,6 +88,28 @@ Get service version information for version management.
 }
 ```
 
+### POST /reset-pool
+Manually reset the browser pool for testing or emergency situations.
+
+**Features:**
+- Clears all existing browser instances
+- Recreates the browser pool
+- Useful for manual browser pool management
+- Can be used to mitigate Cloudflare detection issues
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Browser pool reset successfully"
+}
+```
+
+**Use Cases:**
+- Force browser pool refresh during testing
+- Reset pool after detecting browser fingerprinting changes
+- Emergency recovery from browser cache/session issues
+
 ## 🧪 Testing
 
 The page-scraper includes comprehensive test coverage with enhanced testing infrastructure and containerized test execution.

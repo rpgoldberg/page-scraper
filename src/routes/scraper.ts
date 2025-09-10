@@ -1,5 +1,5 @@
 import express from 'express';
-import { scrapeMFC, scrapeGeneric, SITE_CONFIGS, ScrapeConfig } from '../services/genericScraper';
+import { scrapeMFC, scrapeGeneric, SITE_CONFIGS, ScrapeConfig, BrowserPool } from '../services/genericScraper';
 
 const router = express.Router();
 
@@ -117,6 +117,27 @@ router.get('/configs', (req, res) => {
     success: true,
     data: SITE_CONFIGS
   });
+});
+
+// Browser pool reset endpoint (for testing)
+router.post('/reset-pool', async (req, res) => {
+  console.log('[SCRAPER API] Resetting browser pool');
+  
+  try {
+    BrowserPool.reset();
+    
+    res.json({
+      success: true,
+      message: 'Browser pool reset successfully'
+    });
+  } catch (error: any) {
+    console.error('[SCRAPER API] Error resetting pool:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset browser pool',
+      error: error.message
+    });
+  }
 });
 
 export default router;
