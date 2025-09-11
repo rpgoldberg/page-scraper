@@ -20,7 +20,8 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+# Using --ignore-scripts for security to prevent execution of npm scripts
+RUN npm ci --ignore-scripts
 
 # Copy source code
 COPY . .
@@ -67,16 +68,20 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Using --ignore-scripts for security to prevent execution of npm scripts  
+RUN npm ci --only=production --ignore-scripts && npm cache clean --force
 
-# Copy application from builder
-COPY --from=builder --chown=pptruser:pptruser /app/dist ./dist 2>/dev/null || true
-COPY --from=builder --chown=pptruser:pptruser /app/src ./src 2>/dev/null || true
-COPY --chown=pptruser:pptruser *.js ./ 2>/dev/null || true
+# Copy application from builder with read-only permissions
+# Files are owned by root:root with 644 permissions (read-only for non-root)
+COPY --from=builder --chown=root:root --chmod=644 /app/dist ./dist 2>/dev/null || true
+COPY --from=builder --chown=root:root --chmod=644 /app/src ./src 2>/dev/null || true
+COPY --chown=root:root --chmod=644 *.js ./ 2>/dev/null || true
 
 # Create necessary directories with proper permissions
-RUN mkdir -p /tmp/puppeteer && \
-    chown -R pptruser:pptruser /tmp/puppeteer
+# Puppeteer needs writable directories for downloads and temporary files
+RUN mkdir -p /tmp/puppeteer /app/downloads /app/screenshots && \
+    chown -R pptruser:pptruser /tmp/puppeteer /app/downloads /app/screenshots && \
+    chmod 755 /tmp/puppeteer /app/downloads /app/screenshots
 
 # Switch to non-root user
 USER pptruser
