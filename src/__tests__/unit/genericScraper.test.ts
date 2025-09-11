@@ -15,9 +15,9 @@ describe('genericScraper', () => {
   let mockBrowser: any;
   let originalProcessOn: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
-    BrowserPool.reset();
+    await BrowserPool.reset();
     
     // Save original process.on to restore later
     originalProcessOn = process.on;
@@ -124,7 +124,7 @@ describe('genericScraper', () => {
 
     it('should handle browser launch failure in emergency mode', async () => {
       // Reset pool and mock setup
-      BrowserPool.reset();
+      await BrowserPool.reset();
       (puppeteer.launch as jest.Mock)
         .mockRejectedValueOnce(new Error('Launch failed'))
         .mockResolvedValueOnce(mockBrowser);
@@ -137,7 +137,7 @@ describe('genericScraper', () => {
 
     it('should handle max emergency browsers exhausted', async () => {
       // Reset and don't initialize pool
-      BrowserPool.reset();
+      await BrowserPool.reset();
       
       // Make all launches fail
       (puppeteer.launch as jest.Mock).mockRejectedValue(new Error('Launch failed'));
@@ -182,8 +182,8 @@ describe('genericScraper', () => {
       expect(mockBrowser.close).not.toHaveBeenCalled();
     });
 
-    it('should reset browser pool', () => {
-      BrowserPool.reset();
+    it('should reset browser pool', async () => {
+      await BrowserPool.reset();
       // Should not throw
       expect(true).toBe(true);
     });

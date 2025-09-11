@@ -361,9 +361,47 @@ describe('Scraper Routes Integration Tests', () => {
   });
 
   describe('POST /reset-pool', () => {
-    it('should successfully reset browser pool', async () => {
-      // Mock BrowserPool.reset
-      const mockReset = jest.fn();
+    const originalEnv = process.env.NODE_ENV;
+    const originalAdminToken = process.env.ADMIN_TOKEN;
+
+    beforeEach(() => {
+      // Set test environment
+      process.env.NODE_ENV = 'test';
+      process.env.ADMIN_TOKEN = 'test-admin-token';
+    });
+
+    afterEach(() => {
+      // Restore original environment
+      process.env.NODE_ENV = originalEnv;
+      process.env.ADMIN_TOKEN = originalAdminToken;
+    });
+
+    it('should return 403 without authentication token', async () => {
+      const response = await request(app)
+        .post('/reset-pool')
+        .expect(403);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+
+    it('should return 403 with invalid authentication token', async () => {
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'invalid-token')
+        .expect(403);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+
+    it('should successfully reset browser pool with valid token', async () => {
+      // Mock BrowserPool.reset as async
+      const mockReset = jest.fn().mockResolvedValue(undefined);
       mockedGenericScraper.BrowserPool = {
         reset: mockReset,
         initialize: jest.fn(),
@@ -373,6 +411,7 @@ describe('Scraper Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/reset-pool')
+        .set('x-admin-token', 'test-admin-token')
         .expect(200);
 
       expect(response.body).toEqual({
@@ -385,9 +424,7 @@ describe('Scraper Routes Integration Tests', () => {
 
     it('should return 500 if pool reset fails', async () => {
       const resetError = new Error('Pool reset failed');
-      const mockReset = jest.fn().mockImplementation(() => {
-        throw resetError;
-      });
+      const mockReset = jest.fn().mockRejectedValue(resetError);
       
       mockedGenericScraper.BrowserPool = {
         reset: mockReset,
@@ -398,17 +435,32 @@ describe('Scraper Routes Integration Tests', () => {
 
       const response = await request(app)
         .post('/reset-pool')
+        .set('x-admin-token', 'test-admin-token')
         .expect(500);
 
       expect(response.body).toEqual({
         success: false,
         message: 'Failed to reset browser pool',
-        error: 'Pool reset failed',
+      });
+      // Note: error details are no longer exposed
+    });
+
+    it('should return 404 in production environment', async () => {
+      process.env.NODE_ENV = 'production';
+
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'test-admin-token')
+        .expect(404);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Not found',
       });
     });
 
     it('should handle pool reset with no errors even if pool is already reset', async () => {
-      const mockReset = jest.fn();
+      const mockReset = jest.fn().mockResolvedValue(undefined);
       mockedGenericScraper.BrowserPool = {
         reset: mockReset,
         initialize: jest.fn(),
@@ -416,10 +468,10 @@ describe('Scraper Routes Integration Tests', () => {
         closeAll: jest.fn(),
       } as any;
 
-      // Call reset multiple times
-      await request(app).post('/reset-pool').expect(200);
-      await request(app).post('/reset-pool').expect(200);
-      await request(app).post('/reset-pool').expect(200);
+      // Call reset multiple times with auth
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
 
       expect(mockReset).toHaveBeenCalledTimes(3);
     });

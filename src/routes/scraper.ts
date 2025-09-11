@@ -119,12 +119,32 @@ router.get('/configs', (req, res) => {
   });
 });
 
-// Browser pool reset endpoint (for testing)
+// Browser pool reset endpoint (for testing only - protected)
 router.post('/reset-pool', async (req, res) => {
-  console.log('[SCRAPER API] Resetting browser pool');
+  console.log('[SCRAPER API] Reset pool request received');
+  
+  // Only allow in non-production environments
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({
+      success: false,
+      message: 'Not found'
+    });
+  }
+  
+  // Require admin token for authentication
+  const adminToken = req.header('x-admin-token');
+  if (!adminToken || adminToken !== process.env.ADMIN_TOKEN) {
+    console.log('[SCRAPER API] Unauthorized reset attempt');
+    return res.status(403).json({
+      success: false,
+      message: 'Forbidden'
+    });
+  }
+  
+  console.log('[SCRAPER API] Authorized - resetting browser pool');
   
   try {
-    BrowserPool.reset();
+    await BrowserPool.reset();
     
     res.json({
       success: true,
@@ -134,8 +154,7 @@ router.post('/reset-pool', async (req, res) => {
     console.error('[SCRAPER API] Error resetting pool:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reset browser pool',
-      error: error.message
+      message: 'Failed to reset browser pool'
     });
   }
 });

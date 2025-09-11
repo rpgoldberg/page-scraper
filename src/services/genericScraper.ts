@@ -212,10 +212,13 @@ export class BrowserPool {
   private static replenishLock = false; // Prevent concurrent replenishment
 
   // Added for improved test isolation
-  static reset(): void {
+  static async reset(): Promise<void> {
+    // Close all existing browsers first
+    await this.closeAll();
     this.browsers = [];
     this.isInitialized = false;
     this.replenishLock = false;
+    this.emergencyBrowserCount = 0;
   }
   
   private static getBrowserConfig() {

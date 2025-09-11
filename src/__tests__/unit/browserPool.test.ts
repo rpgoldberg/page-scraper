@@ -11,12 +11,12 @@ describe('Browser Pool Management', () => {
   let mockPage: jest.Mocked<puppeteer.Page>;
   let mockBrowser: jest.Mocked<puppeteer.Browser>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks(); 
     jest.resetModules();
     
     // Comprehensive reset using new reset method
-    BrowserPool.reset();
+    await BrowserPool.reset();
     
     // Don't mock BrowserPool.getBrowser for these tests - let it use the real implementation
 
@@ -107,7 +107,7 @@ describe('Browser Pool Management', () => {
   describe('Browser Pool Operations', () => {
     beforeEach(async () => {
       // Comprehensive reset using new reset method
-      BrowserPool.reset();
+      await BrowserPool.reset();
       
       // Mock fresh browsers for each test
       (puppeteer.launch as jest.Mock).mockClear();
