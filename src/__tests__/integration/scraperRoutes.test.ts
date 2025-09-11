@@ -360,6 +360,71 @@ describe('Scraper Routes Integration Tests', () => {
     });
   });
 
+  describe('POST /reset-pool', () => {
+    it('should successfully reset browser pool', async () => {
+      // Mock BrowserPool.reset
+      const mockReset = jest.fn();
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      const response = await request(app)
+        .post('/reset-pool')
+        .expect(200);
+
+      expect(response.body).toEqual({
+        success: true,
+        message: 'Browser pool reset successfully',
+      });
+
+      expect(mockReset).toHaveBeenCalled();
+    });
+
+    it('should return 500 if pool reset fails', async () => {
+      const resetError = new Error('Pool reset failed');
+      const mockReset = jest.fn().mockImplementation(() => {
+        throw resetError;
+      });
+      
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      const response = await request(app)
+        .post('/reset-pool')
+        .expect(500);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Failed to reset browser pool',
+        error: 'Pool reset failed',
+      });
+    });
+
+    it('should handle pool reset with no errors even if pool is already reset', async () => {
+      const mockReset = jest.fn();
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      // Call reset multiple times
+      await request(app).post('/reset-pool').expect(200);
+      await request(app).post('/reset-pool').expect(200);
+      await request(app).post('/reset-pool').expect(200);
+
+      expect(mockReset).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('CORS handling', () => {
     it('should include CORS headers', async () => {
       const response = await request(app)
