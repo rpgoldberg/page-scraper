@@ -5,6 +5,12 @@ on:
     branches: [main, develop, feature/*]
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to analyze'
+        required: false
+        default: 'develop'
 
 jobs:
   sonarcloud:
@@ -14,6 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
           fetch-depth: 0  # Shallow clones disabled for better analysis
       
       - name: Setup Node.js
