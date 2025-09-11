@@ -31,11 +31,15 @@ RUN npm run build || echo "No build step"
 # Stage 2: Production
 FROM node:20-alpine AS production
 
+# Build arguments for customization
+ARG GITHUB_ORG=rpgoldberg
+ARG GITHUB_REPO=page-scraper
+
 # Add labels
 LABEL org.opencontainers.image.title="Figure Collector Page Scraper"
 LABEL org.opencontainers.image.description="Web scraping service with Puppeteer"
 LABEL org.opencontainers.image.vendor="Figure Collector Services"
-LABEL org.opencontainers.image.source="https://github.com/rpgoldberg/page-scraper"
+LABEL org.opencontainers.image.source="https://github.com/${GITHUB_ORG}/${GITHUB_REPO}"
 
 # Install runtime dependencies for Puppeteer
 RUN apk add --no-cache \
