@@ -2,6 +2,7 @@
 # Multi-stage build with Puppeteer support
 
 # Stage 1: Build
+# Note: Base image runs as root during build (required for compilation)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -30,6 +31,7 @@ COPY . .
 RUN npm run build || echo "No build step"
 
 # Stage 2: Production
+# Note: Base image runs as root during setup, switches to non-root for runtime
 FROM node:20-alpine AS production
 
 # Build arguments for customization
