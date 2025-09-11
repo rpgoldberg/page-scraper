@@ -88,16 +88,22 @@ Get service version information for version management.
 }
 ```
 
-### POST /reset-pool
+### POST /reset-pool (Test Environment Only)
+**⚠️ This endpoint is only available in non-production environments**
+
 Manually reset the browser pool for testing or emergency situations.
 
-**Features:**
-- Clears all existing browser instances
-- Recreates the browser pool
-- Useful for manual browser pool management
-- Can be used to mitigate Cloudflare detection issues
+**Security:**
+- **Environment Protection**: Only registered in non-production environments
+- **Authentication Required**: Must provide valid `x-admin-token` header
+- **Async Operation**: Properly closes all browsers before resetting
 
-**Response:**
+**Request Headers:**
+```
+x-admin-token: <admin-token-value>
+```
+
+**Response (Success):**
 ```json
 {
   "success": true,
@@ -105,10 +111,24 @@ Manually reset the browser pool for testing or emergency situations.
 }
 ```
 
+**Response (Unauthorized):**
+```json
+{
+  "success": false,
+  "message": "Forbidden"
+}
+```
+
+**Features:**
+- Clears all existing browser instances safely
+- Recreates the browser pool
+- Useful for manual browser pool management during testing
+- Can be used to mitigate Cloudflare detection issues
+
 **Use Cases:**
 - Force browser pool refresh during testing
 - Reset pool after detecting browser fingerprinting changes
-- Emergency recovery from browser cache/session issues
+- Emergency recovery from browser cache/session issues in test environments
 
 ## 🧪 Testing
 
@@ -116,7 +136,9 @@ The page-scraper includes comprehensive test coverage with enhanced testing infr
 
 ### Test Coverage Overview
 
-- **Total Test Suites**: 8 (including new integration tests)
+- **Total Test Suites**: 10 test suites
+- **Total Tests**: 215 passing tests
+- **Code Coverage**: 80%+ (SonarCloud quality gate achieved)
 - **Testing Framework**: Jest + TypeScript + Supertest
 - **Mocking Strategy**: Complete Puppeteer API mocking
 - **Containerized Testing**: Docker-based test execution with coverage extraction
@@ -317,13 +339,26 @@ module.exports = {
 - Browser Pool Efficiency: <1 second pool operations
 - Memory Management: Proper cleanup after each operation
 
-### Recent Performance Improvements
+### Recent Improvements
+
+**Security Enhancements (Latest):**
+- Protected `/reset-pool` endpoint with authentication (x-admin-token)
+- Conditional endpoint registration (not available in production)
+- Async browser cleanup in `BrowserPool.reset()`
+- Removed sensitive error details from API responses
+- Enhanced Docker security (explicit file copying, no recursive COPY)
+
+**Test Coverage Improvements:**
+- Achieved 80%+ code coverage (SonarCloud quality gate)
+- Added comprehensive test suites for all routes
+- Enhanced security testing for protected endpoints
+- Improved mock implementations for async operations
 
 **BrowserPool Enhancements:**
 - Improved concurrency management
 - Enhanced Cloudflare detection mechanism
 - Optimized static state reset for better test isolation
-- Coverage improvement from 54.66% to 65.14% (+19.6% coverage)
+- Proper async cleanup of browser resources
 
 **Concurrency Management Strategy:**
 ```typescript
@@ -449,6 +484,8 @@ docker run -p 3000:3000 -e PORT=3000 page-scraper
 
 ### Environment Variables
 - `PORT`: Server port (default: 3000, dev: 3010, test: 3005)
+- `NODE_ENV`: Environment mode (development, test, production)
+- `ADMIN_TOKEN`: Authentication token for protected endpoints (required for /reset-pool in non-production)
 - `VERSION_MANAGER_URL`: Full URL to version manager service (optional)
 - `VERSION_MANAGER_HOST`: Version manager hostname (default: 'version-manager')
 - `VERSION_MANAGER_PORT`: Version manager port (default: '3001')
