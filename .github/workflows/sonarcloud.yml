@@ -2,7 +2,7 @@ name: SonarCloud Analysis
 
 on:
   push:
-    branches: [main, develop, feature/*]
+    branches: [main, develop]  # Only analyze default branches (free tier limitation)
   pull_request:
     types: [opened, synchronize, reopened]
 
