@@ -35,7 +35,7 @@ FROM node:20-alpine AS production
 LABEL org.opencontainers.image.title="Figure Collector Page Scraper"
 LABEL org.opencontainers.image.description="Web scraping service with Puppeteer"
 LABEL org.opencontainers.image.vendor="Figure Collector Services"
-LABEL org.opencontainers.image.source="https://github.com/yourorg/figure-collector-page-scraper"
+LABEL org.opencontainers.image.source="https://github.com/rpgoldberg/page-scraper"
 
 # Install runtime dependencies for Puppeteer
 RUN apk add --no-cache \
