@@ -36,6 +36,6 @@ RUN npm run build
 # Ensure test output directory exists
 RUN mkdir -p /app/test-output
 
-# For integration testing, we need the service to start, not run tests
-# The integration test runner will execute tests separately
-CMD ["npm", "start"]
+# Default to running tests; set RUN_SERVER=1 to start the service
+# This allows the container to be used for both testing and integration scenarios
+CMD ["sh", "-c", "if [ \"$RUN_SERVER\" = \"1\" ]; then npm start; else npm test; fi"]
