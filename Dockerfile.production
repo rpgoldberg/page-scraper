@@ -42,7 +42,7 @@ LABEL org.opencontainers.image.description="Web scraping service with Puppeteer"
 LABEL org.opencontainers.image.vendor="Figure Collector Services"
 LABEL org.opencontainers.image.source="https://github.com/${GITHUB_ORG}/${GITHUB_REPO}"
 
-# Install runtime dependencies for Puppeteer
+# Install runtime dependencies and create non-root user in a single layer
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -51,16 +51,14 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont \
-    dumb-init
+    dumb-init && \
+    addgroup -g 1001 -S pptruser && \
+    adduser -S pptruser -u 1001
 
 # Set Puppeteer environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
     NODE_ENV=production
-
-# Create non-root user
-RUN addgroup -g 1001 -S pptruser && \
-    adduser -S pptruser -u 1001
 
 WORKDIR /app
 
