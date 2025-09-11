@@ -24,8 +24,10 @@ COPY package*.json ./
 # Using --ignore-scripts for security to prevent execution of npm scripts
 RUN npm ci --ignore-scripts
 
-# Copy source code
-COPY . .
+# Copy only necessary source files (not recursive)
+# Explicitly copy what's needed to avoid inadvertently adding sensitive data
+COPY tsconfig.json ./
+COPY src ./src
 
 # Build TypeScript (if applicable)
 RUN npm run build || echo "No build step"
@@ -71,11 +73,13 @@ COPY package*.json ./
 # Using --ignore-scripts for security to prevent execution of npm scripts  
 RUN npm ci --only=production --ignore-scripts && npm cache clean --force
 
-# Copy application from builder with read-only permissions
-# Files are owned by root:root with 644 permissions (read-only for non-root)
-COPY --from=builder --chown=root:root --chmod=644 /app/dist ./dist 2>/dev/null || true
-COPY --from=builder --chown=root:root --chmod=644 /app/src ./src 2>/dev/null || true
-COPY --chown=root:root --chmod=644 *.js ./ 2>/dev/null || true
+# Copy only built application files with proper ownership
+# Be explicit about what to copy to avoid sensitive data exposure
+COPY --from=builder --chown=root:root /app/dist ./dist
+
+# Set read-only permissions on application files
+RUN find /app/dist -type f -exec chmod 644 {} \; && \
+    find /app/dist -type d -exec chmod 755 {} \;
 
 # Create necessary directories with proper permissions
 # Puppeteer needs writable directories for downloads and temporary files
@@ -96,5 +100,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 # Use dumb-init to handle signals
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start application
-CMD ["node", "index.js"]
+# Start application (use dist/index.js for TypeScript builds)
+CMD ["node", "dist/index.js"]
