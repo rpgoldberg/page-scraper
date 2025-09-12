@@ -348,11 +348,21 @@ module.exports = {
 - Removed sensitive error details from API responses
 - Enhanced Docker security (explicit file copying, no recursive COPY)
 
+**Docker Production Improvements:**
+- Fixed Chromium executable path for Alpine Linux (/usr/bin/chromium-browser)
+- Dynamic healthcheck respects PORT environment variable
+- Removed build fallback for fail-fast behavior
+- Fixed .dockerignore to not exclude Dockerfiles from build context
+- Added writable home directory for non-root user (Chromium requirement)
+- Improved healthcheck security (no shell substitution)
+
 **Test Coverage Improvements:**
 - Achieved 80%+ code coverage (SonarCloud quality gate)
 - Added comprehensive test suites for all routes
 - Enhanced security testing for protected endpoints
 - Improved mock implementations for async operations
+- Better test isolation using `jest.isolateModules()` instead of `jest.resetModules()`
+- Added try-finally blocks for guaranteed environment cleanup
 
 **BrowserPool Enhancements:**
 - Improved concurrency management
