@@ -21,8 +21,6 @@ coverage
 .gitignore
 README.md
 docker-compose*.yml
-Dockerfile*
-.dockerignore
 tests
 test
 __tests__

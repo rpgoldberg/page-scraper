@@ -447,26 +447,28 @@ describe('Scraper Routes Integration Tests', () => {
 
     it('should not register endpoint in production environment', async () => {
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+      try {
+        process.env.NODE_ENV = 'production';
 
-      const prodApp = express();
-      prodApp.use(cors());
-      prodApp.use(express.json());
+        const prodApp = express();
+        prodApp.use(cors());
+        prodApp.use(express.json());
 
-      // Re-import router in isolation with mocks preserved
-      jest.isolateModules(() => {
-        jest.doMock('../../services/genericScraper'); // keep module mocked
-        const prodRouter = require('../../routes/scraper').default;
-        prodApp.use('/', prodRouter);
-      });
+        // Re-import router in isolation with mocks preserved
+        jest.isolateModules(() => {
+          jest.doMock('../../services/genericScraper'); // keep module mocked
+          const prodRouter = require('../../routes/scraper').default;
+          prodApp.use('/', prodRouter);
+        });
 
-      await request(prodApp)
-        .post('/reset-pool')
-        .set('x-admin-token', 'test-admin-token')
-        .expect(404);
-
-      // Restore original environment
-      process.env.NODE_ENV = originalNodeEnv;
+        await request(prodApp)
+          .post('/reset-pool')
+          .set('x-admin-token', 'test-admin-token')
+          .expect(404);
+      } finally {
+        // Always restore original environment
+        process.env.NODE_ENV = originalNodeEnv;
+      }
     });
 
     it('should handle pool reset with no errors even if pool is already reset', async () => {
