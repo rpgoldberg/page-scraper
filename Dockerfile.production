@@ -29,8 +29,8 @@ RUN npm ci --ignore-scripts
 COPY tsconfig.json ./
 COPY src ./src
 
-# Build TypeScript (if applicable)
-RUN npm run build || echo "No build step"
+# Build TypeScript
+RUN npm run build
 
 # Stage 2: Production
 # Note: Base image runs as root during setup, switches to non-root for runtime
@@ -59,9 +59,9 @@ RUN apk add --no-cache \
     addgroup -g 1001 -S pptruser && \
     adduser -S pptruser -u 1001
 
-# Set Puppeteer environment variables
+# Set Puppeteer environment variables (Alpine Chromium path)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     NODE_ENV=production
 
 WORKDIR /app
@@ -90,12 +90,12 @@ RUN mkdir -p /tmp/puppeteer /app/downloads /app/screenshots && \
 # Switch to non-root user
 USER pptruser
 
-# Expose port
-EXPOSE 3005
+# Expose port (app defaults to 3000 unless overridden)
+EXPOSE 3000
 
-# Health check
+# Health check that respects PORT (defaults to 3000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3005/health', (r) => {if(r.statusCode !== 200) throw new Error()})"
+  CMD node -e "const http=require('http');const port=process.env.PORT||3000;http.get(\`http://localhost:\${port}/health\`,(r)=>{if(r.statusCode!==200)process.exit(1)}).on('error',()=>process.exit(1));"
 
 # Use dumb-init to handle signals
 ENTRYPOINT ["dumb-init", "--"]
