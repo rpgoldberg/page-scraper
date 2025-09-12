@@ -376,6 +376,24 @@ describe('Scraper Routes Integration Tests', () => {
       process.env.ADMIN_TOKEN = originalAdminToken;
     });
 
+    it('should return 500 if ADMIN_TOKEN is not configured', async () => {
+      // Temporarily remove ADMIN_TOKEN
+      delete process.env.ADMIN_TOKEN;
+      
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'any-token')
+        .expect(500);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Server configuration error',
+      });
+      
+      // Restore ADMIN_TOKEN for other tests
+      process.env.ADMIN_TOKEN = 'test-admin-token';
+    });
+
     it('should return 403 without authentication token', async () => {
       const response = await request(app)
         .post('/reset-pool')
@@ -442,6 +460,7 @@ describe('Scraper Routes Integration Tests', () => {
         success: false,
         message: 'Failed to reset browser pool',
       });
+      expect(mockReset).toHaveBeenCalled();
       // Note: error details are no longer exposed
     });
 

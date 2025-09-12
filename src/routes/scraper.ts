@@ -128,7 +128,17 @@ if (process.env.NODE_ENV !== 'production') {
     
     // Require admin token for authentication
     const adminToken = req.header('x-admin-token');
-    if (!adminToken || adminToken !== process.env.ADMIN_TOKEN) {
+    const configuredToken = process.env.ADMIN_TOKEN;
+    
+    if (!configuredToken) {
+      console.error('[SCRAPER API] ADMIN_TOKEN not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+    
+    if (!adminToken || adminToken !== configuredToken) {
       console.log('[SCRAPER API] Unauthorized reset attempt');
       return res.status(403).json({
         success: false,
