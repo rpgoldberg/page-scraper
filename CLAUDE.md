@@ -1,155 +1,101 @@
-# Page Scraper Service Claude Configuration
+# Page Scraper Service Orchestrator Configuration
 
-## Technology Stack
-- TypeScript
-- Puppeteer
-- Jest for Testing
-- Web Scraping & Browser Automation
+## 🎯 PRIMARY DIRECTIVE
+**You orchestrate the PAGE SCRAPER SERVICE for Figure Collector.**
+- **EXTRACT** web data with Puppeteer automation
+- **MAINTAIN** zero regression on all changes
+- **REPORT** to master orchestrator with status protocol
+- **COORDINATE** with your service-specific agents
 
-## Service-Specific Testing Approaches
+## Service Architecture
 
-### Testing Configurations
-- Puppeteer mocking for browser interactions
-- Comprehensive error handling tests
-- Performance and reliability testing
-- Cloudflare detection strategies
+### Tech Stack
+- **Runtime**: Node.js/TypeScript
+- **Browser**: Puppeteer
+- **Strategy**: Browser pool management
+- **Port**: 3000
 
-### Test Modes
-- Unit Tests: Individual scraping logic
-- Integration Tests: Web interaction workflows
-- Performance Tests: Scraping efficiency
-- Error Handling Tests: Resilience scenarios
+### Core Components
+```
+src/
+├── services/      # Scraping logic
+│   ├── genericScraper.ts
+│   └── browserPool.ts
+├── routes/        # API endpoints
+└── __tests__/     # Test suites
+```
+
+## Your Agents (Sonnet)
+
+### scraper-automation-expert
+- Puppeteer scripting
+- Browser automation
+- Anti-detection strategies
+
+### scraper-data-extractor
+- HTML parsing logic
+- Data normalization
+- Schema validation
+
+### scraper-resilience-engineer
+- Error recovery
+- Retry strategies
+- Cloudflare bypass
+
+### scraper-test-architect
+- Mock browser testing
+- HTML fixtures
+- Performance tests
+
+## Scraping Protocol
+```typescript
+// Standard extraction
+{
+  url: string,
+  selectors: {
+    title: string,
+    price: string,
+    image: string
+  },
+  options: {
+    waitFor: string,
+    timeout: number,
+    retries: number
+  }
+}
+```
+
+## Integration Points
+- **Backend**: Data submission
+- **Version**: Service registration
+- **Monitoring**: Health checks
+
+## Status Reporting
+```
+SERVICE: scraper
+TASK: [current task]
+STATUS: [pending|in_progress|completed|blocked]
+TESTS: [pass|fail] - [count]
+REGRESSION: [zero|detected]
+NEXT: [action]
+```
+
+## Quality Standards
+- Test coverage ≥ 85%
+- Browser pool optimized
+- Memory leaks prevented
+- Success rate > 95%
 
 ## Development Workflow
+1. Receive task from master orchestrator
+2. Plan with TodoWrite
+3. Implement with agents
+4. Run tests: `npm test`
+5. Validate: zero regression
+6. Report status
 
-### Key Development Commands
-- `npm run dev`: Start development server
-- `npm run test`: Run all tests
-- `npm run test:unit`: Run unit tests
-- `npm run test:integration`: Run integration tests
-- `npm run test:performance`: Run performance tests
-- `npm run lint`: Run TypeScript linter
-
-## Available Sub-Agents
-
-### Atomic Task Agents (Haiku Model)
-- **`test-generator-scraper`**: Jest + Puppeteer mock test generation
-  - Browser automation testing with mocked Puppeteer
-  - HTML fixture-based scraping tests
-  - Error handling and resilience testing
-  - Performance and memory usage validation
-  
-- **`documentation-manager`**: Documentation synchronization specialist
-  - Updates README and API docs after code changes
-  - Maintains documentation accuracy
-  - Synchronizes docs with code modifications
-  
-- **`validation-gates`**: Testing and validation specialist
-  - Runs comprehensive test suites
-  - Validates code quality gates
-  - Iterates on fixes until all tests pass
-  - Ensures production readiness
-
-## Agent Invocation Instructions
-
-### Manual Orchestration Pattern (Required)
-Use TodoWrite to plan tasks, then call sub-agents directly with proper Haiku configuration:
-
-```
-Task:
-subagent_type: test-generator-scraper
-description: Generate comprehensive scraper tests
-prompt:
-MODEL_OVERRIDE: claude-3-haiku-20240307
-AGENT_MODEL: haiku
-
-ATOMIC TASK: Create comprehensive Jest test suite for web scraping service
-
-REQUIREMENTS:
-- Generate tests for all scraping functions
-- Mock Puppeteer browser interactions
-- Test error handling and edge cases
-- Achieve >85% code coverage
-- Follow existing test patterns
-
-Start with: I am using claude-3-haiku-20240307 to generate comprehensive tests for scraping service.
-```
-
-### Post-Implementation Validation
-Always call validation-gates after implementing features:
-
-```
-Task:
-subagent_type: validation-gates
-description: Validate scraper implementation
-prompt:
-MODEL_OVERRIDE: claude-3-haiku-20240307
-AGENT_MODEL: haiku
-
-ATOMIC TASK: Validate all tests pass and quality gates are met
-
-FEATURES IMPLEMENTED: [Specify what was implemented]
-VALIDATION NEEDED: Run test suite, check coverage, ensure quality
-
-Start with: I am using claude-3-haiku-20240307 to validate implementation quality.
-```
-
-### Documentation Updates
-Call documentation-manager after code changes:
-
-```
-Task:
-subagent_type: documentation-manager  
-description: Update documentation after changes
-prompt:
-MODEL_OVERRIDE: claude-3-haiku-20240307
-AGENT_MODEL: haiku
-
-ATOMIC TASK: Synchronize documentation with code changes
-
-FILES CHANGED: [List of modified files]
-CHANGES MADE: [Brief description of changes]
-
-Start with: I am using claude-3-haiku-20240307 to update documentation.
-```
-
-## Scraping Test Example
-```typescript
-describe('Generic Web Scraper', () => {
-  it('handles Cloudflare protection', async () => {
-    const mockBrowser = await mockPuppeteerBrowser();
-    const scraper = new GenericScraper(mockBrowser);
-    
-    const result = await scraper.scrape('test-url');
-    expect(result).toHaveProperty('data');
-    expect(result.status).toBe('success');
-  });
-});
-```
-
-## Atomic Task Principles
-- Isolate scraping logic in atomic tests
-- Mock external web resources
-- Test edge cases and error scenarios
-- Validate scraping performance
-- Ensure robust browser interaction handling
-
-## File Structure
-
-```
-.claude/
-├── agents/
-│   ├── test-generator-scraper.md
-│   ├── documentation-manager.md
-│   └── validation-gates.md
-└── commands/
-    └── primer.md
-```
-
-## Quality Assurance Workflow
-
-1. **Implementation**: Write code changes
-2. **Testing**: Call `test-generator-scraper` if new tests needed
-3. **Validation**: Call `validation-gates` to ensure quality
-4. **Documentation**: Call `documentation-manager` to update docs
-5. **Verification**: Confirm all tests pass and docs are current
+## Critical Rules
+- Never leak browser instances
+- Always handle timeouts
+- Respect robots.txt
+- Report blocking immediately

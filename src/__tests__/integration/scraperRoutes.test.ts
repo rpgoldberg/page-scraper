@@ -360,6 +360,154 @@ describe('Scraper Routes Integration Tests', () => {
     });
   });
 
+  describe('POST /reset-pool', () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalAdminToken = process.env.ADMIN_TOKEN;
+
+    beforeEach(() => {
+      // Set test environment
+      process.env.NODE_ENV = 'test';
+      process.env.ADMIN_TOKEN = 'test-admin-token';
+    });
+
+    afterEach(() => {
+      // Restore original environment
+      process.env.NODE_ENV = originalEnv;
+      process.env.ADMIN_TOKEN = originalAdminToken;
+    });
+
+    it('should return 500 if ADMIN_TOKEN is not configured', async () => {
+      // Temporarily remove ADMIN_TOKEN
+      delete process.env.ADMIN_TOKEN;
+      
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'any-token')
+        .expect(500);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Server configuration error',
+      });
+      
+      // Restore ADMIN_TOKEN for other tests
+      process.env.ADMIN_TOKEN = 'test-admin-token';
+    });
+
+    it('should return 403 without authentication token', async () => {
+      const response = await request(app)
+        .post('/reset-pool')
+        .expect(403);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+
+    it('should return 403 with invalid authentication token', async () => {
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'invalid-token')
+        .expect(403);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+
+    it('should successfully reset browser pool with valid token', async () => {
+      // Mock BrowserPool.reset as async
+      const mockReset = jest.fn().mockResolvedValue(undefined);
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'test-admin-token')
+        .expect(200);
+
+      expect(response.body).toEqual({
+        success: true,
+        message: 'Browser pool reset successfully',
+      });
+
+      expect(mockReset).toHaveBeenCalled();
+    });
+
+    it('should return 500 if pool reset fails', async () => {
+      const resetError = new Error('Pool reset failed');
+      const mockReset = jest.fn().mockRejectedValue(resetError);
+      
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      const response = await request(app)
+        .post('/reset-pool')
+        .set('x-admin-token', 'test-admin-token')
+        .expect(500);
+
+      expect(response.body).toEqual({
+        success: false,
+        message: 'Failed to reset browser pool',
+      });
+      expect(mockReset).toHaveBeenCalled();
+      // Note: error details are no longer exposed
+    });
+
+    it('should not register endpoint in production environment', async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = 'production';
+
+        const prodApp = express();
+        prodApp.use(cors());
+        prodApp.use(express.json());
+
+        // Re-import router in isolation with mocks preserved
+        jest.isolateModules(() => {
+          jest.doMock('../../services/genericScraper'); // keep module mocked
+          const prodRouter = require('../../routes/scraper').default;
+          prodApp.use('/', prodRouter);
+        });
+
+        await request(prodApp)
+          .post('/reset-pool')
+          .set('x-admin-token', 'test-admin-token')
+          .expect(404);
+      } finally {
+        // Always restore original environment
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+    });
+
+    it('should handle pool reset with no errors even if pool is already reset', async () => {
+      const mockReset = jest.fn().mockResolvedValue(undefined);
+      mockedGenericScraper.BrowserPool = {
+        reset: mockReset,
+        initialize: jest.fn(),
+        getBrowser: jest.fn(),
+        closeAll: jest.fn(),
+      } as any;
+
+      // Call reset multiple times with auth
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
+      await request(app).post('/reset-pool').set('x-admin-token', 'test-admin-token').expect(200);
+
+      expect(mockReset).toHaveBeenCalledTimes(3);
+    });
+  });
+
   describe('CORS handling', () => {
     it('should include CORS headers', async () => {
       const response = await request(app)

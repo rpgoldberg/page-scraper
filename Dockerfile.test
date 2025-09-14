@@ -30,8 +30,12 @@ RUN timeout 600 npm install --no-audit --no-fund
 # Copy source code and tests
 COPY . .
 
+# Build the application
+RUN npm run build
+
 # Ensure test output directory exists
 RUN mkdir -p /app/test-output
 
-# Default test command
-CMD ["npm", "run", "test:coverage"]
+# Default to running tests; set RUN_SERVER=1 to start the service
+# This allows the container to be used for both testing and integration scenarios
+CMD ["sh", "-c", "if [ \"$RUN_SERVER\" = \"1\" ]; then npm start; else npm test; fi"]
