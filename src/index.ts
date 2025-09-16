@@ -68,10 +68,17 @@ const registerWithVersionManager = async () => {
   };
 
   try {
+    const serviceAuthToken = process.env.SERVICE_AUTH_TOKEN;
+    if (!serviceAuthToken) {
+      console.warn('[PAGE-SCRAPER] SERVICE_AUTH_TOKEN not configured - skipping registration');
+      return;
+    }
+
     const response = await fetch(`${versionManagerUrl}/services/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceAuthToken}`
       },
       body: JSON.stringify(registrationData)
     });
