@@ -34,7 +34,8 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   testTimeout: 30000,
   maxWorkers: 4,
-  
+  forceExit: true, // Force Jest to exit after all tests complete
+
   // Enhanced Puppeteer Mocking
   moduleNameMapper: {
     '^puppeteer$': '<rootDir>/src/__tests__/__mocks__/puppeteer.ts'
