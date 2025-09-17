@@ -49,7 +49,11 @@ const registerWithVersionManager = async () => {
   const versionManagerPort = process.env.VERSION_MANAGER_PORT || '3001';
   const versionManagerHost = process.env.VERSION_MANAGER_HOST || 'version-manager';
   const versionManagerUrl = process.env.VERSION_MANAGER_URL || `http://${versionManagerHost}:${versionManagerPort}`;
-  
+
+  console.log('[PAGE-SCRAPER DEBUG] Registration attempt:');
+  console.log('[PAGE-SCRAPER DEBUG] VERSION_MANAGER_URL:', versionManagerUrl);
+  console.log('[PAGE-SCRAPER DEBUG] SERVICE_AUTH_TOKEN present:', !!process.env.SERVICE_AUTH_TOKEN);
+
   const registrationData = {
     serviceId: 'page-scraper',
     name: 'Page Scraper Service',
@@ -74,6 +78,9 @@ const registerWithVersionManager = async () => {
       return;
     }
 
+    console.log('[PAGE-SCRAPER DEBUG] Attempting registration to:', `${versionManagerUrl}/services/register`);
+    console.log('[PAGE-SCRAPER DEBUG] Registration data:', JSON.stringify(registrationData, null, 2));
+
     const response = await fetch(`${versionManagerUrl}/services/register`, {
       method: 'POST',
       headers: {
@@ -83,6 +90,7 @@ const registerWithVersionManager = async () => {
       body: JSON.stringify(registrationData)
     });
 
+    console.log('[PAGE-SCRAPER DEBUG] Registration response status:', response.status);
     if (response.ok) {
       const result = await response.json();
       console.log(`[PAGE-SCRAPER] Successfully registered with version manager:`, result.service);
@@ -92,8 +100,12 @@ const registerWithVersionManager = async () => {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn(`[PAGE-SCRAPER] Version manager registration failed:`, errorMessage);
-    console.warn(`[PAGE-SCRAPER] Service will continue without version manager registration`);
+    console.error('[PAGE-SCRAPER] Version manager registration failed:', errorMessage);
+    console.error('[PAGE-SCRAPER DEBUG] Full error details:', error);
+    if (error instanceof Error) {
+      console.error('[PAGE-SCRAPER DEBUG] Error stack:', error.stack);
+    }
+    console.warn('[PAGE-SCRAPER] Service will continue without version manager registration');
   }
 };
 
