@@ -222,7 +222,7 @@ export class BrowserPool {
   }
   
   private static getBrowserConfig() {
-    return {
+    const config: any = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -238,11 +238,18 @@ export class BrowserPool {
         '--disable-backgrounding-occluded-windows',
         '--disable-features=TranslateUI',
         '--disable-ipc-flooding-protection',
-        '--memory-pressure-off',
-        '--single-process'
+        '--memory-pressure-off'
+        // Removed '--single-process' as it causes issues in Docker containers
       ],
       timeout: 30000
     };
+
+    // Use the executable path from environment variable if set (for Docker)
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      config.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    return config;
   }
   
   static async initialize(): Promise<void> {
