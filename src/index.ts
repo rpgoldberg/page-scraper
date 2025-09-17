@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import scraperRoutes from './routes/scraper';
 import * as packageJson from '../package.json';
+import { scraperDebug } from './utils/logger';
 
 dotenv.config();
 
@@ -50,9 +51,9 @@ const registerWithVersionManager = async () => {
   const versionManagerHost = process.env.VERSION_MANAGER_HOST || 'version-manager';
   const versionManagerUrl = process.env.VERSION_MANAGER_URL || `http://${versionManagerHost}:${versionManagerPort}`;
 
-  console.log('[PAGE-SCRAPER DEBUG] Registration attempt:');
-  console.log('[PAGE-SCRAPER DEBUG] VERSION_MANAGER_URL:', versionManagerUrl);
-  console.log('[PAGE-SCRAPER DEBUG] SERVICE_AUTH_TOKEN present:', !!process.env.SERVICE_AUTH_TOKEN);
+  scraperDebug.registration('Registration attempt initiated');
+  scraperDebug.registration('VERSION_MANAGER_URL:', versionManagerUrl);
+  scraperDebug.registration('SERVICE_AUTH_TOKEN present:', !!process.env.SERVICE_AUTH_TOKEN);
 
   const registrationData = {
     serviceId: 'page-scraper',
@@ -78,8 +79,8 @@ const registerWithVersionManager = async () => {
       return;
     }
 
-    console.log('[PAGE-SCRAPER DEBUG] Attempting registration to:', `${versionManagerUrl}/services/register`);
-    console.log('[PAGE-SCRAPER DEBUG] Registration data:', JSON.stringify(registrationData, null, 2));
+    scraperDebug.registration('Attempting registration to:', `${versionManagerUrl}/services/register`);
+    scraperDebug.registration('Registration data:', registrationData);
 
     const response = await fetch(`${versionManagerUrl}/services/register`, {
       method: 'POST',
@@ -90,7 +91,7 @@ const registerWithVersionManager = async () => {
       body: JSON.stringify(registrationData)
     });
 
-    console.log('[PAGE-SCRAPER DEBUG] Registration response status:', response.status);
+    scraperDebug.registration('Registration response status:', response.status);
     if (response.ok) {
       const result = await response.json();
       console.log(`[PAGE-SCRAPER] Successfully registered with version manager:`, result.service);
