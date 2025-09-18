@@ -1,58 +1,89 @@
-# Dependabot configuration for automated dependency updates
-# This file enables GitHub's free dependency scanning and automated PR creation
+# Dependabot configuration for vulnerability monitoring
+# This is FREE for public repos and provides continuous monitoring
 
 version: 2
 updates:
-  # Node.js dependencies
+  # Backend service
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/figure-collector-backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "03:00"
+      interval: "daily"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "security"
     commit-message:
-      prefix: "deps"
-      prefix-development: "deps-dev"
-    # Group minor and patch updates together
-    groups:
-      production-dependencies:
-        patterns:
-          - "*"
-        exclude-patterns:
-          - "@types/*"
-          - "eslint*"
-          - "jest*"
-        update-types:
-          - "minor"
-          - "patch"
-      development-dependencies:
-        patterns:
-          - "@types/*"
-          - "eslint*"
-          - "jest*"
-          - "*-dev"
-        update-types:
-          - "minor"
-          - "patch"
+      prefix: "chore"
+      include: "scope"
+
+  # Frontend service
+  - package-ecosystem: "npm"
+    directory: "/figure-collector-frontend"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+
+  # Page scraper service
+  - package-ecosystem: "npm"
+    directory: "/page-scraper"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+
+  # Version manager service
+  - package-ecosystem: "npm"
+    directory: "/version-manager"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/figure-collector-backend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/figure-collector-frontend"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/page-scraper"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "docker"
+      - "security"
+
+  - package-ecosystem: "docker"
+    directory: "/version-manager"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "docker"
+      - "security"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-    labels:
-      - "ci/cd"
-      - "dependencies"
-
-  # Docker base images
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
       interval: "weekly"
     labels:
-      - "docker"
+      - "ci/cd"
       - "dependencies"
