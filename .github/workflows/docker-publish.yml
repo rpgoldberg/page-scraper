@@ -1,9 +1,12 @@
-name: Build and Push Docker Image
+name: Build, Scan, and Push Docker Image
 
 on:
   # Automatic triggers
   push:
     branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+    types: [opened, synchronize, reopened]
     tags:
       - 'v*.*.*'  # Semantic version tags like v1.0.0
 
@@ -78,7 +81,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

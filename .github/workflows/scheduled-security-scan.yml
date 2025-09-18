@@ -7,6 +7,11 @@ on:
     # Also run weekly for comprehensive scan on Sundays
     - cron: '0 3 * * 0'
   workflow_dispatch:  # Allow manual trigger
+  # Also run after Docker build completes on main branches
+  workflow_run:
+    workflows: ["Build, Scan, and Push Docker Image"]
+    branches: [develop, main]
+    types: [completed]
     inputs:
       severity_threshold:
         description: 'Minimum severity to report (CRITICAL, HIGH, MEDIUM, LOW)'
