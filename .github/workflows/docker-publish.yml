@@ -105,6 +105,7 @@ jobs:
 
   # Security scan for PRs (local image)
   pr-security-scan:
+    needs: build-and-push
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
