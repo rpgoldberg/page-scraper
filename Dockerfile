@@ -62,9 +62,23 @@ RUN apt-get update && apt-get upgrade -y \
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (let Puppeteer download its own Chromium)
+# Skip Puppeteer's Chrome download and install dependencies
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm config set fetch-timeout 300000 && npm config set fetch-retry-maxtimeout 300000
 RUN timeout 600 npm install --no-audit --no-fund
+
+# Download and install patched Chrome for Testing (140.0.7339.185)
+RUN apt-get update && apt-get install -y wget unzip \
+    && wget -q https://storage.googleapis.com/chrome-for-testing-public/140.0.7339.185/linux64/chrome-linux64.zip \
+    && unzip chrome-linux64.zip \
+    && mv chrome-linux64 /opt/chrome \
+    && rm chrome-linux64.zip \
+    && chmod +x /opt/chrome/chrome \
+    && apt-get remove -y wget unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Chrome path for Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/opt/chrome/chrome
 
 # Copy source code
 COPY . .
