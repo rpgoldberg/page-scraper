@@ -80,7 +80,13 @@ jobs:
           echo "critical_count=$CRITICAL_COUNT" >> $GITHUB_OUTPUT
           echo "high_count=$HIGH_COUNT" >> $GITHUB_OUTPUT
           echo "medium_count=$MEDIUM_COUNT" >> $GITHUB_OUTPUT
-          echo "has_vulnerabilities=$([[ $CRITICAL_COUNT -gt 0 || $HIGH_COUNT -gt 0 ]] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+
+          # Determine if there are vulnerabilities
+          if [[ $CRITICAL_COUNT -gt 0 || $HIGH_COUNT -gt 0 ]]; then
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_vulnerabilities=false" >> $GITHUB_OUTPUT
+          fi
 
           # Create markdown summary
           {
