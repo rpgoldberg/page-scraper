@@ -243,8 +243,9 @@ export class BrowserPool {
       timeout: 30000
     };
 
-    // Add single-process flag for CI environment (required for GitHub Actions)
-    if (process.env.CI === 'true') {
+    // Add single-process flag ONLY for GitHub Actions (not for Docker)
+    // GitHub Actions needs this flag, but it breaks Docker containers
+    if (process.env.GITHUB_ACTIONS === 'true') {
       config.args.push('--single-process');
     }
 
