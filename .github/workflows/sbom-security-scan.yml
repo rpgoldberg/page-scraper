@@ -130,6 +130,8 @@ jobs:
 
           # Check for root user
           FIRST_TAG=$(echo "${{ inputs.image-tags }}" | head -n1)
+          # Pull the image first since it was pushed in the previous job
+          docker pull "${FIRST_TAG}"
           USER=$(docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.User')
           if [ -z "$USER" ] || [ "$USER" = "root" ] || [ "$USER" = "0" ]; then
             echo "⚠️  WARNING: Container runs as root user" >> policy-report.txt
