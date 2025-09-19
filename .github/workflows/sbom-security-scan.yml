@@ -28,6 +28,7 @@ jobs:
       packages: write
       actions: read
       id-token: write  # For attestation
+      attestations: write  # For SBOM attestation
 
     steps:
       # Generate SBOM for the container image
