@@ -69,6 +69,7 @@ jobs:
 
           # Run Trivy scan
           trivy image --format json --output trivy-results.json "$IMAGE" || true
+          trivy image --format sarif --output trivy-results.sarif --severity "${SEVERITY_THRESHOLD},CRITICAL" "$IMAGE" || true
           trivy image --format table --severity "${SEVERITY_THRESHOLD},CRITICAL" "$IMAGE" > scan-summary.txt || true
 
           # Count vulnerabilities by severity
