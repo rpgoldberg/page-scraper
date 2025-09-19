@@ -239,10 +239,14 @@ export class BrowserPool {
         '--disable-features=TranslateUI',
         '--disable-ipc-flooding-protection',
         '--memory-pressure-off'
-        // Removed '--single-process' as it causes issues in Docker containers
       ],
       timeout: 30000
     };
+
+    // Add single-process flag for CI environment (required for GitHub Actions)
+    if (process.env.CI === 'true') {
+      config.args.push('--single-process');
+    }
 
     // Use the executable path from environment variable if set (for Docker)
     if (process.env.PUPPETEER_EXECUTABLE_PATH) {
