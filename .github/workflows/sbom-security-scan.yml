@@ -28,8 +28,17 @@ jobs:
       packages: write
       actions: read
       id-token: write  # For attestation
+      attestations: write  # For SBOM attestation
 
     steps:
+      # Log in to registry to pull images for scanning
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Generate SBOM for the container image
       - name: Install security tools
         run: |
@@ -121,24 +130,32 @@ jobs:
 
           # Check for root user
           FIRST_TAG=$(echo "${{ inputs.image-tags }}" | head -n1)
-          USER=$(docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.User')
-          if [ -z "$USER" ] || [ "$USER" = "root" ] || [ "$USER" = "0" ]; then
-            echo "⚠️  WARNING: Container runs as root user" >> policy-report.txt
-          else
-            echo "✅ Container runs as non-root user: $USER" >> policy-report.txt
-          fi
+          # Pull the image first since it was pushed in the previous job
+          docker pull "${FIRST_TAG}" || true
 
-          # Check for sensitive environment variables
-          docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.Env[]' | while read -r env; do
-            if echo "$env" | grep -qE "(PASSWORD|SECRET|TOKEN|KEY|PRIVATE)="; then
-              echo "⚠️  WARNING: Potential sensitive data in ENV: $(echo $env | cut -d= -f1)" >> policy-report.txt
+          # Check if docker inspect works
+          if docker inspect "${FIRST_TAG}" >/dev/null 2>&1; then
+            USER=$(docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.User' || echo "")
+            if [ -z "$USER" ] || [ "$USER" = "root" ] || [ "$USER" = "0" ]; then
+              echo "⚠️  WARNING: Container runs as root user" >> policy-report.txt
+            else
+              echo "✅ Container runs as non-root user: $USER" >> policy-report.txt
             fi
-          done
 
-          # Check exposed ports
-          PORTS=$(docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.ExposedPorts | keys[]' 2>/dev/null)
-          if [ -n "$PORTS" ]; then
-            echo "📡 Exposed ports: $PORTS" >> policy-report.txt
+            # Check for sensitive environment variables
+            docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.Env[]' 2>/dev/null | while read -r env; do
+              if echo "$env" | grep -qE "(PASSWORD|SECRET|TOKEN|KEY|PRIVATE)="; then
+                echo "⚠️  WARNING: Potential sensitive data in ENV: $(echo $env | cut -d= -f1)" >> policy-report.txt
+              fi
+            done || true
+
+            # Check exposed ports
+            PORTS=$(docker inspect "${FIRST_TAG}" | jq -r '.[0].Config.ExposedPorts | keys[]' 2>/dev/null || echo "")
+            if [ -n "$PORTS" ]; then
+              echo "📡 Exposed ports: $PORTS" >> policy-report.txt
+            fi
+          else
+            echo "⚠️  WARNING: Unable to inspect container image" >> policy-report.txt
           fi
 
       # Upload all reports
