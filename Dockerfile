@@ -2,12 +2,14 @@
 # Using Ubuntu 22.04 LTS (Jammy) - well-tested with Puppeteer and good security
 FROM ubuntu:22.04
 
-# Install Node.js 24 and npm (latest version with security fixes)
+# Install Node.js 24 using official binaries (avoids NodeSource CVE false positives)
 RUN apt-get update && apt-get install -y \
     curl \
-    gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y nodejs \
+    xz-utils \
+    && NODE_VERSION=v24.8.0 \
+    && curl -fsSLO https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz \
+    && tar -xJf node-${NODE_VERSION}-linux-x64.tar.xz -C /usr/local --strip-components=1 \
+    && rm node-${NODE_VERSION}-linux-x64.tar.xz \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
