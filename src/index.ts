@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import scraperRoutes from './routes/scraper';
 import * as packageJson from '../package.json';
+import { scraperDebug } from './utils/logger';
 
 dotenv.config();
 
@@ -49,7 +50,11 @@ const registerWithVersionManager = async () => {
   const versionManagerPort = process.env.VERSION_MANAGER_PORT || '3001';
   const versionManagerHost = process.env.VERSION_MANAGER_HOST || 'version-manager';
   const versionManagerUrl = process.env.VERSION_MANAGER_URL || `http://${versionManagerHost}:${versionManagerPort}`;
-  
+
+  scraperDebug.registration('Registration attempt initiated');
+  scraperDebug.registration('VERSION_MANAGER_URL:', versionManagerUrl);
+  scraperDebug.registration('SERVICE_AUTH_TOKEN present:', !!process.env.SERVICE_AUTH_TOKEN);
+
   const registrationData = {
     serviceId: 'page-scraper',
     name: 'Page Scraper Service',
@@ -68,14 +73,25 @@ const registerWithVersionManager = async () => {
   };
 
   try {
+    const serviceAuthToken = process.env.SERVICE_AUTH_TOKEN;
+    if (!serviceAuthToken) {
+      console.warn('[PAGE-SCRAPER] SERVICE_AUTH_TOKEN not configured - skipping registration');
+      return;
+    }
+
+    scraperDebug.registration('Attempting registration to:', `${versionManagerUrl}/services/register`);
+    scraperDebug.registration('Registration data:', registrationData);
+
     const response = await fetch(`${versionManagerUrl}/services/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceAuthToken}`
       },
       body: JSON.stringify(registrationData)
     });
 
+    scraperDebug.registration('Registration response status:', response.status);
     if (response.ok) {
       const result = await response.json();
       console.log(`[PAGE-SCRAPER] Successfully registered with version manager:`, result.service);
@@ -85,8 +101,12 @@ const registerWithVersionManager = async () => {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn(`[PAGE-SCRAPER] Version manager registration failed:`, errorMessage);
-    console.warn(`[PAGE-SCRAPER] Service will continue without version manager registration`);
+    console.error('[PAGE-SCRAPER] Version manager registration failed:', errorMessage);
+    console.error('[PAGE-SCRAPER DEBUG] Full error details:', error);
+    if (error instanceof Error) {
+      console.error('[PAGE-SCRAPER DEBUG] Error stack:', error.stack);
+    }
+    console.warn('[PAGE-SCRAPER] Service will continue without version manager registration');
   }
 };
 

@@ -222,7 +222,7 @@ export class BrowserPool {
   }
   
   private static getBrowserConfig() {
-    return {
+    const config: any = {
       headless: true,
       args: [
         '--no-sandbox',
@@ -238,11 +238,23 @@ export class BrowserPool {
         '--disable-backgrounding-occluded-windows',
         '--disable-features=TranslateUI',
         '--disable-ipc-flooding-protection',
-        '--memory-pressure-off',
-        '--single-process'
+        '--memory-pressure-off'
       ],
       timeout: 30000
     };
+
+    // Add single-process flag ONLY for GitHub Actions (not for Docker)
+    // GitHub Actions needs this flag, but it breaks Docker containers
+    if (process.env.GITHUB_ACTIONS === 'true') {
+      config.args.push('--single-process');
+    }
+
+    // Use the executable path from environment variable if set (for Docker)
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+      config.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    return config;
   }
   
   static async initialize(): Promise<void> {

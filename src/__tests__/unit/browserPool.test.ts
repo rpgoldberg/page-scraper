@@ -102,6 +102,49 @@ describe('Browser Pool Management', () => {
         })
       );
     });
+
+    it('should use PUPPETEER_EXECUTABLE_PATH when set', async () => {
+      const originalEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
+      process.env.PUPPETEER_EXECUTABLE_PATH = '/usr/bin/chromium-browser';
+
+      try {
+        await initializeBrowserPool();
+
+        expect(puppeteer.launch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            executablePath: '/usr/bin/chromium-browser',
+          })
+        );
+      } finally {
+        // Restore original env
+        if (originalEnv === undefined) {
+          delete process.env.PUPPETEER_EXECUTABLE_PATH;
+        } else {
+          process.env.PUPPETEER_EXECUTABLE_PATH = originalEnv;
+        }
+      }
+    });
+
+    it('should not use executablePath when PUPPETEER_EXECUTABLE_PATH is not set', async () => {
+      const originalEnv = process.env.PUPPETEER_EXECUTABLE_PATH;
+      delete process.env.PUPPETEER_EXECUTABLE_PATH;
+
+      try {
+        await initializeBrowserPool();
+
+        // Check that executablePath is undefined (not set)
+        const launchCalls = (puppeteer.launch as jest.Mock).mock.calls;
+        launchCalls.forEach(call => {
+          const config = call[0];
+          expect(config.executablePath).toBeUndefined();
+        });
+      } finally {
+        // Restore original env
+        if (originalEnv !== undefined) {
+          process.env.PUPPETEER_EXECUTABLE_PATH = originalEnv;
+        }
+      }
+    });
   });
 
   describe('Browser Pool Operations', () => {
