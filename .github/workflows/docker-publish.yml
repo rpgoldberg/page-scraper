@@ -30,6 +30,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+      packages: write
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
