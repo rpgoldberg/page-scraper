@@ -18,6 +18,7 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y \
     wget \
+    gnupg \
     ca-certificates \
     procps \
     libxss1 \
