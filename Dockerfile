@@ -2,11 +2,11 @@
 # Using Ubuntu 22.04 LTS (Jammy) - well-tested with Puppeteer and good security
 FROM ubuntu:22.04
 
-# Install Node.js 23 and npm (fixes CVE-2023-44487)
+# Install Node.js 24 and npm (latest version with security fixes)
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
-    && curl -fsSL https://deb.nodesource.com/setup_23.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
