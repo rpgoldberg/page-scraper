@@ -1,6 +1,14 @@
 # Use full Node image (not Alpine) for better Puppeteer support
-# Using Ubuntu 24.04 (Noble) for latest security updates
-FROM node:22-noble
+# Using Ubuntu 22.04 LTS (Jammy) - well-tested with Puppeteer and good security
+FROM ubuntu:22.04
+
+# Install Node.js 22 and npm
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -8,10 +16,39 @@ WORKDIR /app
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y \
     wget \
-    gnupg \
     ca-certificates \
     procps \
     libxss1 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libatspi2.0-0 \
+    libx11-6 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome Stable and fonts
