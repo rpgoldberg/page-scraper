@@ -1,6 +1,6 @@
 # Use full Node image (not Alpine) for better Puppeteer support
-# Using bookworm-slim for smaller image size and latest Debian 12 updates
-FROM node:22-bookworm-slim
+# Using Ubuntu 24.04 (Noble) for latest security updates
+FROM node:22-noble
 
 WORKDIR /app
 
