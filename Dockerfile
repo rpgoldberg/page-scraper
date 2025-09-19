@@ -1,10 +1,12 @@
 # Use full Node image (not Alpine) for better Puppeteer support
-FROM node:22
+# Using bookworm-slim for smaller image size and latest Debian 12 updates
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-# Install dependencies for Puppeteer
-RUN apt-get update && apt-get install -y \
+# Install dependencies for Puppeteer and ensure latest security updates
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y \
     wget \
     gnupg \
     ca-certificates \
@@ -15,11 +17,12 @@ RUN apt-get update && apt-get install -y \
 # Install Google Chrome Stable and fonts
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
+    && apt-get update && apt-get upgrade -y \
     && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
-    && apt-get remove -y git git-man imagemagick \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get purge -y git git-man imagemagick \
+    && apt-get autoremove -y --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Copy package files
 COPY package*.json ./
