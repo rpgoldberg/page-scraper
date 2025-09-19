@@ -17,8 +17,6 @@ WORKDIR /app
 # Install dependencies for Puppeteer and ensure latest security updates
 RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y \
-    wget \
-    gnupg \
     ca-certificates \
     procps \
     libxss1 \
@@ -54,12 +52,9 @@ RUN apt-get update && apt-get upgrade -y \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome Stable and fonts
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update && apt-get upgrade -y \
-    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
-    && apt-get purge -y git git-man imagemagick \
+# Install fonts for Puppeteer (no need for Chrome - use Puppeteer's Chromium)
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
     && apt-get autoremove -y --purge \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -67,9 +62,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (skip Puppeteer Chrome download since we install Chrome manually)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+# Install dependencies (let Puppeteer download its own Chromium)
 RUN npm config set fetch-timeout 300000 && npm config set fetch-retry-maxtimeout 300000
 RUN timeout 600 npm install --no-audit --no-fund
 
