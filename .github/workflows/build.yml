@@ -25,10 +25,13 @@ jobs:
         run: npm ci
 
       - name: Install Chromium for Puppeteer
+        run: npx puppeteer browsers install chrome
+
+      - name: Set Chrome path for tests
         run: |
-          npx puppeteer browsers install chrome
-          # Set environment variable for tests
-          echo "PUPPETEER_EXECUTABLE_PATH=$(npx puppeteer browsers path chrome)" >> $GITHUB_ENV
+          CHROME_PATH=$(find ~/.cache/puppeteer -name chrome -type f | head -1)
+          echo "PUPPETEER_EXECUTABLE_PATH=$CHROME_PATH" >> $GITHUB_ENV
+          echo "Chrome installed at: $CHROME_PATH"
       
       - name: Run linter
         run: npm run lint || true
