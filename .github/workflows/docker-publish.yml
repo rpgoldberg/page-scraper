@@ -137,7 +137,16 @@ jobs:
 
       - name: Run vulnerability scan
         run: |
-          grype local-scan:latest --fail-on high
+          # Run grype and check for HIGH or CRITICAL vulnerabilities
+          grype local-scan:latest -o table > vuln-report.txt
+          if grep -E "High|Critical" vuln-report.txt | grep -v "SEVERITY"; then
+            echo "Found HIGH or CRITICAL vulnerabilities:"
+            grep -E "High|Critical" vuln-report.txt | head -20
+            exit 1
+          else
+            echo "No HIGH or CRITICAL vulnerabilities found"
+            cat vuln-report.txt | head -50
+          fi
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v4
