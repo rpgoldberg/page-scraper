@@ -24,6 +24,7 @@ module.exports = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
+    '!src/utils/logger.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: [
