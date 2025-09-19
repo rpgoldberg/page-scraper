@@ -35,8 +35,6 @@ jobs:
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
-      contents: read
-      packages: write
 
     steps:
       - name: Checkout code
@@ -89,9 +87,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Call the reusable security scanning workflow
+  # Call the reusable security scanning workflow (only on non-PR events when image is pushed)
   security-scan:
     needs: build-and-push
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/sbom-security-scan.yml
     with:
       image-tags: ${{ needs.build-and-push.outputs.tags }}
@@ -103,3 +102,48 @@ jobs:
       packages: write
       actions: read
       id-token: write
+
+  # Security scan for PRs (local image)
+  pr-security-scan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image locally
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: local-scan:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          no-cache: true
+
+      - name: Install security tools
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: |
+          syft local-scan:latest -o spdx-json > sbom.spdx.json
+          syft local-scan:latest -o cyclonedx-json > sbom.cyclonedx.json
+
+      - name: Run vulnerability scan
+        run: |
+          grype local-scan:latest --fail-on high
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom.spdx.json
+            sbom.cyclonedx.json
+          retention-days: 30
