@@ -1,5 +1,5 @@
 import express from 'express';
-import { scrapeMFC, scrapeGeneric, SITE_CONFIGS, ScrapeConfig } from '../services/genericScraper';
+import { scrapeMFC, scrapeGeneric, SITE_CONFIGS, ScrapeConfig, BrowserPool } from '../services/genericScraper';
 
 const router = express.Router();
 
@@ -118,5 +118,51 @@ router.get('/configs', (req, res) => {
     data: SITE_CONFIGS
   });
 });
+
+// Only expose reset endpoint in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+  // Browser pool reset endpoint (for testing only)
+  // Protected with admin-only authentication
+  router.post('/reset-pool', async (req, res) => {
+    console.log('[SCRAPER API] Reset pool request received');
+    
+    // Require admin token for authentication
+    const adminToken = req.header('x-admin-token');
+    const configuredToken = process.env.ADMIN_TOKEN;
+    
+    if (!configuredToken) {
+      console.error('[SCRAPER API] ADMIN_TOKEN not configured');
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error'
+      });
+    }
+    
+    if (!adminToken || adminToken !== configuredToken) {
+      console.log('[SCRAPER API] Unauthorized reset attempt');
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden'
+      });
+    }
+    
+    console.log('[SCRAPER API] Authorized - resetting browser pool');
+    
+    try {
+      await BrowserPool.reset();
+      
+      res.json({
+        success: true,
+        message: 'Browser pool reset successfully'
+      });
+    } catch (error: any) {
+      console.error('[SCRAPER API] Error resetting pool:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to reset browser pool'
+      });
+    }
+  });
+}
 
 export default router;

@@ -1,0 +1,41 @@
+FROM node:20
+
+WORKDIR /app
+
+# Install dependencies for Puppeteer (full setup for scraper testing)
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    procps \
+    libxss1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Google Chrome Stable and fonts
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (skip Puppeteer Chrome download since we install Chrome manually)
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+RUN npm config set fetch-timeout 300000 && npm config set fetch-retry-maxtimeout 300000
+RUN timeout 600 npm install --no-audit --no-fund
+
+# Copy source code and tests
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Ensure test output directory exists
+RUN mkdir -p /app/test-output
+
+# Default to running tests; set RUN_SERVER=1 to start the service
+# This allows the container to be used for both testing and integration scenarios
+CMD ["sh", "-c", "if [ \"$RUN_SERVER\" = \"1\" ]; then npm start; else npm test; fi"]
