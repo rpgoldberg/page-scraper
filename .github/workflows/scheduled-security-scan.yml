@@ -197,7 +197,7 @@ jobs:
         continue-on-error: true
 
       - name: Send Discord notification for critical vulnerabilities
-        if: steps.scan.outputs.critical_count > 0
+        if: fromJSON(steps.scan.outputs.critical_count) > 0
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
