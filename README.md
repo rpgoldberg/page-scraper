@@ -482,15 +482,31 @@ npx jest performance.test.ts
 ## Deployment
 
 ### Docker
+
+The service uses a multi-stage Dockerfile with the following build targets:
+
 ```bash
-docker build -t page-scraper .
-# Development (port 3010)
-docker run -p 3010:3010 -e PORT=3010 page-scraper
-# Test (port 3005)
-docker run -p 3005:3005 -e PORT=3005 page-scraper
-# Production (port 3000)  
-docker run -p 3000:3000 -e PORT=3000 page-scraper
+# Development (with hot reload, port 3010)
+docker build --target development -t page-scraper:dev .
+docker run -p 3010:3010 -e PORT=3010 --shm-size=2gb page-scraper:dev
+
+# Test environment (port 3005)
+docker build --target test -t page-scraper:test .
+docker run -p 3005:3005 -e PORT=3005 --shm-size=2gb page-scraper:test
+
+# Production (default, port 3000)
+docker build -t page-scraper:prod .
+docker run -p 3000:3000 -e PORT=3000 --shm-size=2gb page-scraper:prod
 ```
+
+**Available stages:**
+- `base`: Alpine Linux with Chromium and Puppeteer dependencies
+- `development`: Includes devDependencies and nodemon for hot reload
+- `test`: Test environment for CI/CD
+- `builder`: Compiles TypeScript to JavaScript
+- `production`: Optimized image with production dependencies only (default)
+
+**Note**: `--shm-size=2gb` is required for Puppeteer to avoid memory issues with Chromium.
 
 ### Environment Variables
 - `PORT`: Server port (default: 3000, dev: 3010, test: 3005)
