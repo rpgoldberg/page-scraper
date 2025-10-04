@@ -196,8 +196,8 @@ jobs:
           category: scheduled-scan-${{ matrix.service.name }}
         continue-on-error: true
 
-      - name: Send Discord notification for critical vulnerabilities
-        if: steps.scan.outputs.critical_count > 0
+      - name: Send Discord notification for critical/high vulnerabilities
+        if: fromJSON(steps.scan.outputs.critical_count) > 0 || fromJSON(steps.scan.outputs.high_count) > 0
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
@@ -205,44 +205,39 @@ jobs:
             CRITICAL_COUNT="${{ steps.scan.outputs.critical_count }}"
             HIGH_COUNT="${{ steps.scan.outputs.high_count }}"
             SERVICE="${{ matrix.service.name }}"
-
-            # Create Discord webhook payload
             TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            PAYLOAD=$(cat <<EOF
-            {
-              "embeds": [{
-                "title": "🚨 Critical Security Alert",
-                "description": "Vulnerabilities detected in **${SERVICE}**",
-                "color": 15158332,
-                "fields": [
-                  {
-                    "name": "Critical",
-                    "value": "${CRITICAL_COUNT}",
-                    "inline": true
-                  },
-                  {
-                    "name": "High",
-                    "value": "${HIGH_COUNT}",
-                    "inline": true
-                  },
-                  {
-                    "name": "Service",
-                    "value": "${SERVICE}",
-                    "inline": true
-                  }
-                ],
-                "footer": {
-                  "text": "View details in GitHub Issues"
-                },
-                "timestamp": "${TIMESTAMP}"
-              }]
-            }
-            EOF
-            )
 
+            # Create Discord webhook payload (using printf to avoid heredoc issues)
             curl -X POST "$DISCORD_WEBHOOK" \
               -H "Content-Type: application/json" \
-              -d "$PAYLOAD"
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"🚨 Security Alert\",
+                  \"description\": \"Vulnerabilities detected in **${SERVICE}**\",
+                  \"color\": 15158332,
+                  \"fields\": [
+                    {
+                      \"name\": \"Critical\",
+                      \"value\": \"${CRITICAL_COUNT}\",
+                      \"inline\": true
+                    },
+                    {
+                      \"name\": \"High\",
+                      \"value\": \"${HIGH_COUNT}\",
+                      \"inline\": true
+                    },
+                    {
+                      \"name\": \"Service\",
+                      \"value\": \"${SERVICE}\",
+                      \"inline\": true
+                    }
+                  ],
+                  \"footer\": {
+                    \"text\": \"View details in GitHub Issues\"
+                  },
+                  \"timestamp\": \"${TIMESTAMP}\"
+                }]
+              }"
 
             echo "Discord notification sent"
           else
