@@ -1,89 +1,51 @@
-# Dependabot configuration for vulnerability monitoring
-# This is FREE for public repos and provides continuous monitoring
+# Dependabot configuration with smart grouping
+# - Patch updates: grouped (non-breaking)
+# - Dev dependency minor updates: grouped (lower risk)
+# - Major updates: individual PRs (potentially breaking)
+# - Production dependency minor updates: individual PRs (higher risk)
 
 version: 2
 updates:
-  # Backend service
-  - package-ecosystem: "npm"
-    directory: "/figure-collector-backend"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "security"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
-  # Frontend service
-  - package-ecosystem: "npm"
-    directory: "/figure-collector-frontend"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "security"
-
-  # Page scraper service
-  - package-ecosystem: "npm"
-    directory: "/page-scraper"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "security"
-
-  # Version manager service
-  - package-ecosystem: "npm"
-    directory: "/version-manager"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "security"
-
-  # Docker base images
-  - package-ecosystem: "docker"
-    directory: "/figure-collector-backend"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "docker"
-      - "security"
-
-  - package-ecosystem: "docker"
-    directory: "/figure-collector-frontend"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "docker"
-      - "security"
-
-  - package-ecosystem: "docker"
-    directory: "/page-scraper"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "docker"
-      - "security"
-
-  - package-ecosystem: "docker"
-    directory: "/version-manager"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "docker"
-      - "security"
-
-  # GitHub Actions
+  # GitHub Actions - group all (low risk, non-code)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     labels:
-      - "ci/cd"
       - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # npm dependencies - smart grouping
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      # Group all patch updates (0.0.x) - non-breaking by semver
+      patch-updates:
+        update-types: ["patch"]
+
+      # Group minor updates for dev dependencies only (lower risk)
+      dev-minor-updates:
+        dependency-type: "development"
+        update-types: ["minor"]
+
+    # Individual PRs for:
+    # - Major updates (all dependencies) - potentially breaking
+    # - Minor updates for production dependencies - higher impact
+    # - Security updates are never grouped (Dependabot default)
+
+  # Docker base images - individual PRs (security critical)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
