@@ -34,6 +34,7 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+          category: 'dependency-scan'
 
       - name: Run Trivy for PR comment
         if: github.event_name == 'pull_request'
