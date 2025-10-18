@@ -49,7 +49,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install scanning tools
         run: |
@@ -116,7 +116,7 @@ jobs:
 
       - name: Create or update issue for vulnerabilities
         if: steps.scan.outputs.has_vulnerabilities == 'true' && env.CREATE_ISSUES == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -190,7 +190,7 @@ jobs:
 
       - name: Upload scan results to GitHub Security
         if: steps.scan.outputs.has_vulnerabilities == 'true'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
           category: scheduled-scan-${{ matrix.service.name }}
@@ -254,7 +254,7 @@ jobs:
 
     steps:
       - name: Create scan summary
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const date = new Date().toISOString().split('T')[0];
