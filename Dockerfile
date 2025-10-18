@@ -1,5 +1,5 @@
 # =============================================================================
-# BASE STAGE - Secure Ubuntu 22.04 + Node 24 + Patched Chrome 140.0.7339.185
+# BASE STAGE - Secure Ubuntu 24.04 + Node 24 + Patched Chrome 140.0.7339.207
 # =============================================================================
 FROM ubuntu:24.04 AS base
 
@@ -45,7 +45,7 @@ RUN apt-get update && apt-get upgrade -y \
     libxkbcommon0 \
     libgbm1 \
     libgtk-3-0 \
-    libasound2 \
+    libasound2t64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install fonts for Puppeteer
