@@ -1,7 +1,7 @@
 # =============================================================================
 # BASE STAGE - Secure Ubuntu 22.04 + Node 24 + Patched Chrome 140.0.7339.185
 # =============================================================================
-FROM ubuntu:22.04 AS base
+FROM ubuntu:24.04 AS base
 
 # Install Node.js 24 using official binaries (avoids NodeSource CVE false positives)
 RUN apt-get update && apt-get install -y \
