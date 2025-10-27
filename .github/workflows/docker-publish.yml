@@ -4,11 +4,11 @@ on:
   # Automatic triggers
   push:
     branches: [develop, main]
+    tags:
+      - 'v*.*.*'  # Semantic version tags like v1.0.0, v1.0.0-application
   pull_request:
     branches: [develop, main]
     types: [opened, synchronize, reopened]
-    tags:
-      - 'v*.*.*'  # Semantic version tags like v1.0.0
 
   # Manual trigger from GitHub Actions UI
   workflow_dispatch:
