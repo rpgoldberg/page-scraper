@@ -59,12 +59,9 @@ jobs:
             # PR tags (pr-123)
             type=ref,event=pr
 
-            # Service version tags (v2.0.1 -> 2.0.1)
-            type=semver,pattern={{version}}
-
             # Application version tags (v2.0.1-application -> 2.0.1-application AND 2.0.1)
-            # When an application tag is pushed, generate BOTH the application tag and service version tag
-            # This ensures the same image has multiple tags without rebuilding
+            # When application tag is pushed, generates BOTH tags in a single build (same digest)
+            # Example: v2.0.1-application creates Docker tags 2.0.1-application and 2.0.1
             type=match,pattern=v(.+)-application,group=1,suffix=-application
             type=match,pattern=v(.+)-application,group=1
 
