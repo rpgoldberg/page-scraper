@@ -62,11 +62,10 @@ jobs:
             # Service version tags (v2.0.1 -> 2.0.1)
             type=semver,pattern={{version}}
 
-            # Application version tags (v2.0.1-application -> 2.0.1-application AND 2.0.1)
-            # When an application tag is pushed, generate BOTH the application tag and service version tag
-            # This ensures the same image has multiple tags without rebuilding
+            # Application version tags (v2.0.1-application -> 2.0.1-application ONLY)
+            # Application tags do NOT extract the base version
+            # Push separate service version tags for dual-tagging
             type=match,pattern=v(.+)-application,group=1,suffix=-application
-            type=match,pattern=v(.+)-application,group=1
 
             # Latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
