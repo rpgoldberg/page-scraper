@@ -59,16 +59,17 @@ jobs:
             # PR tags (pr-123)
             type=ref,event=pr
 
-            # Version tags (v1.0.0 -> 1.0.0, latest)
+            # Service version tags (v2.0.1 -> 2.0.1)
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+
+            # Application version tags (v2.0.1-application -> 2.0.1-application AND 2.0.1)
+            # When an application tag is pushed, generate BOTH the application tag and service version tag
+            # This ensures the same image has multiple tags without rebuilding
+            type=match,pattern=v(.+)-application,group=1,suffix=-application
+            type=match,pattern=v(.+)-application,group=1
 
             # Latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
-
-            # Manual trigger tag
-            type=raw,value=${{ github.event.inputs.tag || 'manual' }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
