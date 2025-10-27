@@ -40,6 +40,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Read service version from version.json
+        id: service-version
+        run: |
+          SERVICE_VERSION=$(node -pe "require('./version.json').version")
+          echo "version=$SERVICE_VERSION" >> $GITHUB_OUTPUT
+          echo "Service version: $SERVICE_VERSION"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -59,11 +66,13 @@ jobs:
             # PR tags (pr-123)
             type=ref,event=pr
 
-            # Application version tags (v2.0.1-application -> 2.0.1-application AND 2.0.1)
-            # When application tag is pushed, generates BOTH tags in a single build (same digest)
-            # Example: v2.0.1-application creates Docker tags 2.0.1-application and 2.0.1
+            # Service version tag (from version.json)
+            # Reads service version dynamically to ensure correct tagging
+            type=raw,value=${{ steps.service-version.outputs.version }},enable=${{ contains(github.ref, '-application') }}
+
+            # Application version tag (v2.0.1-application -> 2.0.1-application)
+            # Extracts the application version and adds -application suffix
             type=match,pattern=v(.+)-application,group=1,suffix=-application
-            type=match,pattern=v(.+)-application,group=1
 
             # Latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
