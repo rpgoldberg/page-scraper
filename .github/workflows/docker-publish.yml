@@ -40,10 +40,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Read service version from version.json
+      - name: Read service version from package.json
         id: service-version
         run: |
-          SERVICE_VERSION=$(node -pe "require('./version.json').version")
+          SERVICE_VERSION=$(node -pe "require('./package.json').version")
           echo "version=$SERVICE_VERSION" >> $GITHUB_OUTPUT
           echo "Service version: $SERVICE_VERSION"
 
@@ -66,7 +66,7 @@ jobs:
             # PR tags (pr-123)
             type=ref,event=pr
 
-            # Service version tag (from version.json)
+            # Service version tag (from package.json)
             # Reads service version dynamically to ensure correct tagging
             type=raw,value=${{ steps.service-version.outputs.version }},enable=${{ contains(github.ref, '-application') }}
 
