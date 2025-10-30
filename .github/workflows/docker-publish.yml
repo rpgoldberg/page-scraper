@@ -4,8 +4,6 @@ on:
   # Automatic triggers
   push:
     branches: [develop, main]
-    tags:
-      - 'v*.*.*'  # Semantic version tags like v1.0.0, v1.0.0-application
   pull_request:
     branches: [develop, main]
     types: [opened, synchronize, reopened]
@@ -66,13 +64,8 @@ jobs:
             # PR tags (pr-123)
             type=ref,event=pr
 
-            # Service version tag (from package.json)
-            # Reads service version dynamically to ensure correct tagging
-            type=raw,value=${{ steps.service-version.outputs.version }},enable=${{ contains(github.ref, '-application') }}
-
-            # Application version tag (v2.0.1-application -> 2.0.1-application)
-            # Extracts the application version and adds -application suffix
-            type=match,pattern=v(.+)-application,group=1,suffix=-application
+            # Service version tag (from package.json) - only on main branch
+            type=raw,value=${{ steps.service-version.outputs.version }},enable=${{ github.ref == 'refs/heads/main' }}
 
             # Latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
