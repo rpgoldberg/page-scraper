@@ -47,8 +47,10 @@ describe('Error Handling and Timeout Tests', () => {
     mockBrowser = {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
-      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+      createBrowserContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([mockPage]),
       } as any),
       isConnected: jest.fn().mockReturnValue(true),
     } as jest.Mocked<puppeteer.Browser>;
@@ -67,7 +69,8 @@ describe('Error Handling and Timeout Tests', () => {
         .rejects.toThrow('Navigation timeout of 20000 ms exceeded');
 
       expect(mockPage.close).toHaveBeenCalled();
-      expect(mockBrowser.close).toHaveBeenCalled();
+      // Browser is NOT closed - it's managed by the pool for reuse
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
 
     it('should handle DNS resolution errors', async () => {
@@ -134,19 +137,24 @@ describe('Error Handling and Timeout Tests', () => {
   });
 
   describe('Page Creation Failures', () => {
-    it('should handle page creation failure', async () => {
+    it('should handle page creation failure in context', async () => {
       const pageError = new Error('Failed to create page');
-      mockBrowser.newPage.mockRejectedValueOnce(pageError);
+      // Mock context.newPage() to fail (not browser.newPage())
+      const mockContext = await mockBrowser.createBrowserContext();
+      (mockContext.newPage as jest.Mock).mockRejectedValueOnce(pageError);
 
       await expect(scrapeGeneric('https://example.com', {}))
         .rejects.toThrow('Failed to create page');
 
-      expect(mockBrowser.close).toHaveBeenCalled();
+      // Browser is NOT closed - it's managed by the pool for reuse
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
 
-    it('should handle browser disconnection during page creation', async () => {
+    it('should handle browser disconnection during context page creation', async () => {
       const disconnectionError = new Error('Protocol error: Browser closed.');
-      mockBrowser.newPage.mockRejectedValueOnce(disconnectionError);
+      // Mock context.newPage() to fail (not browser.newPage())
+      const mockContext = await mockBrowser.createBrowserContext();
+      (mockContext.newPage as jest.Mock).mockRejectedValueOnce(disconnectionError);
 
       await expect(scrapeGeneric('https://example.com', {}))
         .rejects.toThrow('Protocol error: Browser closed.');
@@ -283,22 +291,25 @@ describe('Error Handling and Timeout Tests', () => {
       expect(mockPage.close).toHaveBeenCalled();
     });
 
-    it('should close browser even if page close fails', async () => {
+    it('should close context pages even if page close fails', async () => {
       mockPage.evaluate.mockResolvedValueOnce({});
       mockPage.close.mockRejectedValueOnce(new Error('Page close failed'));
 
       await scrapeGeneric('https://example.com', {});
 
-      expect(mockBrowser.close).toHaveBeenCalled();
+      // Browser is NOT closed - it's managed by the pool for reuse
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
 
-    it('should handle both page and browser close failures', async () => {
+    it('should handle page close failures gracefully', async () => {
       mockPage.evaluate.mockResolvedValueOnce({});
       mockPage.close.mockRejectedValueOnce(new Error('Page close failed'));
-      mockBrowser.close.mockRejectedValueOnce(new Error('Browser close failed'));
 
-      // Should not throw additional errors
+      // Should not throw additional errors - page close errors are caught
       await expect(scrapeGeneric('https://example.com', {})).resolves.toBeDefined();
+
+      // Browser is NOT closed - it's managed by the pool for reuse
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
   });
 
@@ -322,7 +333,8 @@ describe('Error Handling and Timeout Tests', () => {
 
     it('should handle browser becoming unresponsive', async () => {
       const unresponsiveError = new Error('Browser became unresponsive');
-      mockBrowser.newPage.mockRejectedValueOnce(unresponsiveError);
+      // Mock context creation to fail (not browser.newPage)
+      mockBrowser.createBrowserContext.mockRejectedValueOnce(unresponsiveError);
 
       await expect(scrapeGeneric('https://example.com', {}))
         .rejects.toThrow('Browser became unresponsive');

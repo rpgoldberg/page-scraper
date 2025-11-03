@@ -4,11 +4,8 @@ import puppeteer from 'puppeteer';
 import { scrapeGeneric, scrapeMFC, SITE_CONFIGS, ScrapeConfig, BrowserPool, initializeBrowserPool } from '../../services/genericScraper';
 import { MFC_FIGURE_HTML, CLOUDFLARE_CHALLENGE_HTML, GENERIC_PRODUCT_HTML } from '../fixtures/test-html';
 
-// Mock entire Puppeteer module
-jest.mock('puppeteer', () => ({
-  launch: jest.fn(),
-  defaultViewport: null,
-}));
+// Centralized Puppeteer mock from moduleNameMapper
+// No need to mock here - jest.config.js handles it
 
 describe('genericScraper', () => {
   let mockPage: any;
@@ -45,14 +42,19 @@ describe('genericScraper', () => {
     mockBrowser = {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
-      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+      createBrowserContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([mockPage]),
       }),
       isConnected: jest.fn().mockReturnValue(true),
     };
 
     // Setup launch mock to return our mock browser
     (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
+
+    // DON'T mock BrowserPool.getBrowser globally - let BrowserPool tests use real implementation
+    // Individual tests can mock it if needed
   });
 
   afterEach(() => {
@@ -392,8 +394,7 @@ describe('genericScraper', () => {
       expect(mockPage.close).toHaveBeenCalled();
     });
 
-    it('should handle browser close errors gracefully', async () => {
-      mockBrowser.close.mockRejectedValueOnce(new Error('Browser close failed'));
+    it('should NOT close browser (managed by pool)', async () => {
       mockPage.evaluate.mockResolvedValueOnce({ name: 'Test' });
 
       const config: ScrapeConfig = {
@@ -401,9 +402,10 @@ describe('genericScraper', () => {
       };
 
       const result = await scrapeGeneric('https://example.com', config);
-      
+
       expect(result).toEqual({ name: 'Test' });
-      expect(mockBrowser.close).toHaveBeenCalled();
+      // Browser is NOT closed - it's managed by the pool for reuse
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
 
     it('should use custom user agent when provided', async () => {

@@ -49,8 +49,10 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
     mockBrowser = {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
-      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+      createBrowserContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([mockPage]),
       } as any),
       isConnected: jest.fn().mockReturnValue(true),
     } as jest.Mocked<puppeteer.Browser>;
@@ -703,7 +705,9 @@ describe('MFC-Specific Scraping Configuration Tests', () => {
       expect(mockPage.setUserAgent).toHaveBeenCalledWith(SITE_CONFIGS.mfc.userAgent);
 
       // Memory and performance assertions
-      expect(mockBrowser.close).toHaveBeenCalledTimes(1);
+      // Note: Browser is NOT closed - it's managed by the pool for reuse
+      // Only the context and its pages are closed
+      expect(mockBrowser.close).not.toHaveBeenCalled();
     });
   });
 

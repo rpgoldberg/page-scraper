@@ -41,6 +41,11 @@ describe('Browser Pool Management', () => {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      createBrowserContext: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      }),
     } as jest.Mocked<puppeteer.Browser>;
 
     // Setup launch mock to return our mock browser
@@ -325,9 +330,13 @@ describe('Browser Pool Management', () => {
       const mockPages = Array(concurrentRequests).fill(0).map((_, i) => createMockPageWithDelay(i));
 
       // Cycle through pages, simulating pool exhaustion and reuse
-      mockBrowser.newPage.mockImplementation(() => {
+      mockBrowser.createBrowserContext.mockImplementation(() => {
         const page = mockPages.pop() || mockPages[0];
-        return Promise.resolve(page);
+        return Promise.resolve({
+          newPage: jest.fn().mockResolvedValue(page),
+          close: jest.fn().mockResolvedValue(undefined),
+          pages: jest.fn().mockReturnValue([]),
+        });
       });
 
       // Start concurrent scraping operations
@@ -352,8 +361,8 @@ describe('Browser Pool Management', () => {
       const maxExecutionTime = Math.max(...endTimes.map((end, i) => end - startTimes[i]));
       expect(maxExecutionTime).toBeLessThan(5000); // Should complete within 5 seconds for test stability
 
-      // Verify browser page allocation and management
-      expect(mockBrowser.newPage).toHaveBeenCalledTimes(concurrentRequests);
+      // Verify browser context allocation and management
+      expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(concurrentRequests);
     });
 
     it('should handle resource contention and backpressure', async () => {
@@ -383,9 +392,13 @@ describe('Browser Pool Management', () => {
       }));
 
       // Setup browser to cycle through constrained pages
-      mockBrowser.newPage.mockImplementation(() => {
+      mockBrowser.createBrowserContext.mockImplementation(() => {
         const page = mockResourceLimitedPages[0]; // Always use first page for consistency
-        return Promise.resolve(page);
+        return Promise.resolve({
+          newPage: jest.fn().mockResolvedValue(page),
+          close: jest.fn().mockResolvedValue(undefined),
+          pages: jest.fn().mockReturnValue([]),
+        });
       });
 
       const concurrentRequests = 12; // Divisible by 4 to ensure failures
@@ -425,9 +438,13 @@ describe('Browser Pool Management', () => {
       const mockPages = Array(10).fill(0).map((_, i) => createMockPage(i));
 
       // Cycle through mock pages to simulate pool behavior
-      mockBrowser.newPage.mockImplementation(() => {
+      mockBrowser.createBrowserContext.mockImplementation(() => {
         const page = mockPages.pop() || mockPages[0];
-        return Promise.resolve(page);
+        return Promise.resolve({
+          newPage: jest.fn().mockResolvedValue(page),
+          close: jest.fn().mockResolvedValue(undefined),
+          pages: jest.fn().mockReturnValue([]),
+        });
       });
 
       // Start multiple scraping operations concurrently
@@ -445,13 +462,13 @@ describe('Browser Pool Management', () => {
         expect(result).toHaveProperty('concurrent', true);
       });
 
-      // Verify browser pool management during concurrent operations
-      expect(mockBrowser.newPage).toHaveBeenCalledTimes(10);
+      // Verify browser context management during concurrent operations
+      expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(10);
     });
 
     it('should maintain pool size under concurrent load', async () => {
       // Using static import from top of file
-      
+
       // Track browser launches
       const launchSpy = puppeteer.launch as jest.Mock;
       launchSpy.mockClear();
@@ -477,6 +494,47 @@ describe('Browser Pool Management', () => {
       const launchCount = launchSpy.mock.calls.length;
       expect(launchCount).toBeGreaterThan(0);
       expect(launchCount).toBeLessThan(35); // More realistic constraint for concurrent scraping
+    });
+  });
+
+  describe('Stealth Scraper - Browser Context Management', () => {
+    beforeEach(async () => {
+      await BrowserPool.reset();
+      (puppeteer.launch as jest.Mock).mockClear();
+      (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
+    });
+
+    it('should reuse browser instances via contexts (not close browsers)', async () => {
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn(),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      await scrapeGeneric('https://example.com/page1', {});
+      await scrapeGeneric('https://example.com/page2', {});
+
+      expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(2);
+      expect(mockContext.close).toHaveBeenCalledTimes(2);
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it('should handle 20+ concurrent requests without pool exhaustion', async () => {
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn(),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      const requests = Array(20).fill(0).map((_, i) =>
+        scrapeGeneric(`https://example.com/page${i}`, {})
+      );
+
+      await expect(Promise.all(requests)).resolves.toBeDefined();
     });
   });
 });

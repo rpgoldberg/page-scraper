@@ -1,4 +1,9 @@
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { Browser, Page, BrowserContext } from 'puppeteer';
+
+// Add stealth plugin to puppeteer
+puppeteer.use(StealthPlugin());
 
 export interface ScrapedData {
   imageUrl?: string;
@@ -24,16 +29,16 @@ export interface ScrapeConfig {
 // Enhanced fuzzy string matching for robust Cloudflare detection
 function fuzzyMatchesPattern(text: string, pattern: string, threshold: number = 0.8): boolean {
   if (!text || !pattern) return false;
-  
+
   // Normalize both strings: lowercase, trim, remove extra whitespace
   const normalizedText = text.toLowerCase().trim().replace(/\s+/g, ' ');
   const normalizedPattern = pattern.toLowerCase().trim().replace(/\s+/g, ' ');
-  
+
   // Exact match after normalization
   if (normalizedText.includes(normalizedPattern)) {
     return true;
   }
-  
+
   // Character-level fuzzy matching for typos and variations
   const similarity = calculateSimilarity(normalizedText, normalizedPattern);
   return similarity >= threshold;
@@ -42,9 +47,9 @@ function fuzzyMatchesPattern(text: string, pattern: string, threshold: number = 
 function calculateSimilarity(str1: string, str2: string): number {
   const longer = str1.length > str2.length ? str1 : str2;
   const shorter = str1.length > str2.length ? str2 : str1;
-  
+
   if (longer.length === 0) return 1.0;
-  
+
   // Calculate edit distance
   const editDistance = getEditDistance(longer, shorter);
   return (longer.length - editDistance) / longer.length;
@@ -52,15 +57,15 @@ function calculateSimilarity(str1: string, str2: string): number {
 
 function getEditDistance(str1: string, str2: string): number {
   const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-  
+
   for (let i = 0; i <= str1.length; i++) {
     matrix[0][i] = i;
   }
-  
+
   for (let j = 0; j <= str2.length; j++) {
     matrix[j][0] = j;
   }
-  
+
   for (let j = 1; j <= str2.length; j++) {
     for (let i = 1; i <= str1.length; i++) {
       if (str1[i - 1] === str2[j - 1]) {
@@ -74,7 +79,7 @@ function getEditDistance(str1: string, str2: string): number {
       }
     }
   }
-  
+
   return matrix[str2.length][str1.length];
 }
 
@@ -220,7 +225,7 @@ export class BrowserPool {
     this.replenishLock = false;
     this.emergencyBrowserCount = 0;
   }
-  
+
   private static getBrowserConfig() {
     const config: any = {
       headless: true,
@@ -256,12 +261,12 @@ export class BrowserPool {
 
     return config;
   }
-  
+
   static async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    
+
     console.log(`[BROWSER POOL] Initializing pool with ${this.POOL_SIZE} browsers...`);
-    
+
     for (let i = 0; i < this.POOL_SIZE; i++) {
       try {
         const browser = await puppeteer.launch(this.getBrowserConfig());
@@ -271,11 +276,11 @@ export class BrowserPool {
         console.error(`[BROWSER POOL] Failed to launch browser ${i + 1}:`, error);
       }
     }
-    
+
     this.isInitialized = true;
     console.log(`[BROWSER POOL] Pool initialized with ${this.browsers.length} browsers`);
   }
-  
+
   private static emergencyBrowserCount = 0;
 
   static async getBrowser(): Promise<Browser> {
@@ -283,10 +288,10 @@ export class BrowserPool {
     if (!this.isInitialized) {
       await this.initialize();
     }
-    
+
     // Get a browser from the pool
     const browser = this.browsers.shift();
-    
+
     // Emergency browser handling with enhanced retry and fallback logic
     if (!browser) {
       if (this.emergencyBrowserCount < this.MAX_EMERGENCY_BROWSERS) {
@@ -299,7 +304,7 @@ export class BrowserPool {
           console.error('[BROWSER POOL] Emergency browser launch failed:', launchError);
           // Reduced wait time for emergency failure
           await new Promise(resolve => setTimeout(resolve, 250));
-          
+
           // Last resort fallback mechanism
           if (this.emergencyBrowserCount >= this.MAX_EMERGENCY_BROWSERS) {
             throw new Error('[BROWSER POOL] Max emergency browser attempts exhausted');
@@ -311,17 +316,17 @@ export class BrowserPool {
         throw new Error('[BROWSER POOL] Browser pool exhausted');
       }
     }
-    
+
     console.log(`[BROWSER POOL] Retrieved browser from pool (${this.browsers.length} remaining)`);
-    
+
     // Immediately start replacing the browser we just took
     this.replenishPool().catch(error => {
       console.error('[BROWSER POOL] Failed to replenish pool:', error);
     });
-    
+
     return browser;
   }
-  
+
   private static async replenishPool(): Promise<void> {
     // Use a lock to prevent concurrent replenishment attempts
     if (this.replenishLock || this.browsers.length >= this.POOL_SIZE) return;
@@ -342,10 +347,10 @@ export class BrowserPool {
       this.replenishLock = false;
     }
   }
-  
+
   static async closeAll(): Promise<void> {
     console.log(`[BROWSER POOL] Closing ${this.browsers.length} browsers...`);
-    
+
     const closePromises = this.browsers.map(async (browser, index) => {
       try {
         // Enhanced checks before closing
@@ -361,24 +366,24 @@ export class BrowserPool {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[BROWSER POOL] Error closing browser ${index + 1}: ${errorMessage}`);
-        
+
         // Additional error logging for debugging
         if (error instanceof Error) {
           console.error(`[BROWSER POOL] Detailed error stack: ${error.stack}`);
         }
       }
     });
-    
+
     // Use allSettled to ensure all close attempts are made
     const results = await Promise.allSettled(closePromises);
-    
+
     // Log any failed close attempts
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.warn(`[BROWSER POOL] Browser ${index + 1} close attempt failed:`, result.reason);
       }
     });
-    
+
     this.browsers = [];
     this.emergencyBrowserCount = 0; // Reset emergency browser count
     this.isInitialized = false;
@@ -394,20 +399,25 @@ export async function initializeBrowserPool(): Promise<void> {
 export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<ScrapedData> {
   console.log(`[GENERIC SCRAPER] Starting scrape for: ${url}`);
   console.log(`[GENERIC SCRAPER] Config:`, config);
-  
+
   let browser: Browser | null = null;
+  let context: BrowserContext | null = null;
   let page: Page | null = null;
-  
+
   try {
     // Get fresh browser from pool (much faster than launching)
     browser = await BrowserPool.getBrowser();
-    page = await browser.newPage();
-    
+
+    // CRITICAL FIX: Use browser context instead of direct pages
+    // This allows us to reuse browsers without closing them
+    context = await browser.createBrowserContext();
+    page = await context.newPage();
+
     // Set realistic browser configuration
     await page.setViewport({ width: 1280, height: 720 });
     const userAgent = config.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36';
     await page.setUserAgent(userAgent);
-    
+
     // Set extra headers to appear more like a real browser
     await page.setExtraHTTPHeaders({
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -417,43 +427,43 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
     });
-    
+
     console.log('[GENERIC SCRAPER] Navigating to page...');
-    
+
     // Navigate with faster wait conditions
-    await page.goto(url, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 20000 
+    await page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000
     });
-    
+
     console.log('[GENERIC SCRAPER] Page loaded, waiting for content...');
-    
+
     // Wait for dynamic content (configurable)
     const waitTime = config.waitTime || 1000;
     await new Promise(resolve => setTimeout(resolve, waitTime));
-    
+
     // Check for Cloudflare challenge if configured
     if (config.cloudflareDetection) {
       const pageTitle = await page.title();
       const bodyText = await page.evaluate(() => document.body.innerText);
-      
+
       // Use enhanced detection with fuzzy matching and expanded patterns
       const challengeDetected = detectCloudflareChallenge(pageTitle, bodyText, config.cloudflareDetection);
-      
+
       if (challengeDetected) {
         console.log('[GENERIC SCRAPER] Detected challenge page with enhanced detection, waiting...');
-        
+
         const challengePatterns = ['Just a moment'];
-        
+
         // Wait for the challenge to complete using fuzzy pattern matching
         await page.waitForFunction(
           (patterns: string[]) => {
             const currentBodyText = document.body.innerText.toLowerCase();
             const currentTitle = document.title.toLowerCase();
-            
+
             // Check if challenge pattern no longer exists
-            return !patterns.some(pattern => 
-              currentTitle.includes(pattern.toLowerCase()) || 
+            return !patterns.some(pattern =>
+              currentTitle.includes(pattern.toLowerCase()) ||
               currentBodyText.includes(pattern.toLowerCase())
             );
           },
@@ -462,18 +472,18 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
         ).catch(() => {
           console.log('[GENERIC SCRAPER] Challenge timeout - proceeding anyway');
         });
-        
+
         // Wait less after challenge completion (speed optimization)
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
     }
-    
+
     console.log('[GENERIC SCRAPER] Extracting data...');
-    
+
     // Extract data using page.evaluate
     const scrapedData = await page.evaluate((selectors) => {
       const data: any = {};
-      
+
       try {
         // Extract image
         if (selectors.imageSelector) {
@@ -482,7 +492,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
             data.imageUrl = imageElement.src;
           }
         }
-        
+
         // Extract manufacturer (special handling for MFC)
         if (selectors.manufacturerSelector) {
           if (selectors.manufacturerSelector.includes(':contains(')) {
@@ -505,7 +515,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
             }
           }
         }
-        
+
         // Extract name (special handling for MFC)
         if (selectors.nameSelector) {
           if (selectors.nameSelector.includes(':contains(')) {
@@ -528,14 +538,14 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
             }
           }
         }
-        
+
         // Extract scale
         if (selectors.scaleSelector) {
           const scaleElement = document.querySelector(selectors.scaleSelector) as HTMLElement;
           if (scaleElement && scaleElement.textContent) {
             // For MFC, extract just the scale part (e.g., "1/7" from the item-scale element)
             let scaleText = scaleElement.textContent.trim();
-            
+
             // If it's an MFC .item-scale element, it might contain extra text
             // Extract just the scale fraction (e.g., "1/7")
             const scaleMatch = scaleText.match(/1\/\d+/);
@@ -546,21 +556,21 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
             }
           }
         }
-        
+
         // Debug: Log what we found
         console.log('Extracted data:', data);
-        
+
       } catch (extractError) {
         console.error('Error during data extraction:', extractError);
       }
-      
+
       return data;
     }, config);
-    
+
     console.log('[GENERIC SCRAPER] Extraction completed:', scrapedData);
-    
+
     return scrapedData;
-    
+
   } catch (error: any) {
     console.error(`[GENERIC SCRAPER] Error: ${error.message}`);
     // Log more detailed error information
@@ -572,20 +582,20 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     }
     // Specific error handling for test scenarios
     const criticalErrors = [
-      'timeout', 
-      'disconnected', 
-      'Extraction failed', 
-      'Navigation failed', 
-      'ERR_NETWORK_CHANGED', 
+      'timeout',
+      'disconnected',
+      'Extraction failed',
+      'Navigation failed',
+      'ERR_NETWORK_CHANGED',
       'ERR_NAME_NOT_RESOLVED',
-      'ERR_CONNECTION_REFUSED', 
+      'ERR_CONNECTION_REFUSED',
       'ERR_CERT_AUTHORITY_INVALID',
       'ERR_DNS_MALFORMED_RESPONSE',
       'Failed to launch the browser process',
       'Failed to create page',
       'Protocol error: Browser closed',
       'Invalid viewport dimensions',
-      'Invalid user agent string', 
+      'Invalid user agent string',
       'Invalid header value',
       'Evaluation failed: Timeout',
       'ReferenceError',
@@ -606,11 +616,11 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
       'Unknown argument',
       'ENOSPC',
       'HTTP 404',
-      'HTTP 500', 
+      'HTTP 500',
       'HTTP 429'
     ];
 
-    const isCriticalError = criticalErrors.some(errorType => 
+    const isCriticalError = criticalErrors.some(errorType =>
       error.message.includes(errorType) || error.message === errorType
     );
 
@@ -622,29 +632,29 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     return { error: error.message };
   } finally {
     try {
-      // Ensure page is closed, even if it might have been already closed
-      if (page && 'close' in page && typeof page.close === 'function') {
-        await page.close().catch(closeError => {
-          console.error('[GENERIC SCRAPER] Error closing page:', closeError);
+      // CRITICAL FIX: Close context (not browser!)
+      // This properly cleans up the context and all its pages
+      // while keeping the browser alive for reuse
+      if (context && 'close' in context && typeof context.close === 'function') {
+        // Close all pages in the context first
+        const pages = await context.pages();
+        await Promise.all(pages.map(p => p.close().catch(e => {
+          console.error('[GENERIC SCRAPER] Error closing context page:', e);
+        })));
+
+        // Then close the context
+        await context.close().catch(closeError => {
+          console.error('[GENERIC SCRAPER] Error closing context:', closeError);
         });
-        console.log('[GENERIC SCRAPER] Page closed');
+        console.log('[GENERIC SCRAPER] Context closed');
       }
-    } catch (pageClosed) {
-      console.log('[GENERIC SCRAPER] Page closing encountered an issue:', pageClosed);
+    } catch (contextClosed) {
+      console.log('[GENERIC SCRAPER] Context closing encountered an issue:', contextClosed);
     }
 
-    try {
-      // Ensure browser is closed, even if it might have been already closed
-      if (browser && 'close' in browser && typeof browser.close === 'function') {
-        await browser.close().catch(closeError => {
-          console.error('[GENERIC SCRAPER] Error closing browser:', closeError);
-        });
-        console.log('[GENERIC SCRAPER] Browser closed');
-      }
-    } catch (browserClosed) {
-      console.log('[GENERIC SCRAPER] Browser closing encountered an issue:', browserClosed);
-    }
-
+    // CRITICAL: DO NOT close the browser!
+    // The browser is managed by the pool and should never be closed here
+    // This was the bug causing pool exhaustion
   }
 }
 

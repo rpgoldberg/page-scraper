@@ -39,7 +39,9 @@ module.exports = {
 
   // Enhanced Puppeteer Mocking
   moduleNameMapper: {
-    '^puppeteer$': '<rootDir>/src/__tests__/__mocks__/puppeteer.ts'
+    '^puppeteer$': '<rootDir>/src/__tests__/__mocks__/puppeteer.ts',
+    '^puppeteer-extra$': '<rootDir>/src/__tests__/__mocks__/puppeteer.ts',
+    '^puppeteer-extra-plugin-stealth$': '<rootDir>/src/__tests__/__mocks__/puppeteer-extra-plugin-stealth.ts'
   },
   
   // Comprehensive Mock Management

@@ -38,7 +38,8 @@ interface MockPage {
 interface MockBrowser {
   newPage: MockFn;
   close: MockFn;
-  createIncognitoBrowserContext: MockFn;
+  isConnected: MockFn;
+  createBrowserContext: MockFn;
 }
 
 // Comprehensive Mock Implementation
@@ -81,13 +82,19 @@ export const createMockPage = (): MockPage => ({
   on: jest.fn().mockReturnThis() as any,
 });
 
-export const createMockBrowser = (): MockBrowser => ({
-  newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
-  close: jest.fn().mockResolvedValue(undefined) as any,
-  createIncognitoBrowserContext: jest.fn().mockResolvedValue({
-    newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
-  }) as any,
-});
+export const createMockBrowser = (): MockBrowser => {
+  const mockPage = createMockPage();
+  return {
+    newPage: jest.fn().mockResolvedValue(mockPage) as any,
+    close: jest.fn().mockResolvedValue(undefined) as any,
+    isConnected: jest.fn().mockReturnValue(true) as any,
+    createBrowserContext: jest.fn().mockResolvedValue({
+      newPage: jest.fn().mockResolvedValue(mockPage) as any,
+      close: jest.fn().mockResolvedValue(undefined) as any,
+      pages: jest.fn().mockReturnValue([mockPage]) as any,
+    }) as any,
+  };
+};
 
 // Puppeteer Mock Module
 const mockPuppeteer = {
@@ -97,7 +104,10 @@ const mockPuppeteer = {
   }) as any,
   defaultViewport: { width: 1280, height: 800 },
   connect: jest.fn() as any,
-  
+
+  // Support for puppeteer-extra's .use() method
+  use: jest.fn().mockReturnThis() as any,
+
   // Static type compatibility
   Browser: jest.fn().mockReturnValue(createMockBrowser()) as any,
   Page: jest.fn().mockReturnValue(createMockPage()) as any,

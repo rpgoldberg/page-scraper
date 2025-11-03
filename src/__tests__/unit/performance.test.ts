@@ -53,7 +53,7 @@ describe('Performance Tests - Browser Pool Efficiency', () => {
     mockBrowser = {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
-      createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+      createBrowserContext: jest.fn().mockResolvedValue({
         newPage: jest.fn().mockResolvedValue(mockPage),
       } as any),
       isConnected: jest.fn().mockReturnValue(true),

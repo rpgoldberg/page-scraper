@@ -29,6 +29,11 @@ describe('Enhanced Cloudflare Detection Tests', () => {
       newPage: jest.fn().mockResolvedValue(mockPage),
       close: jest.fn().mockResolvedValue(undefined),
       isConnected: jest.fn().mockReturnValue(true),
+      createBrowserContext: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([mockPage]),
+      }),
     } as jest.Mocked<puppeteer.Browser>;
 
     (puppeteer.launch as jest.Mock).mockResolvedValue(mockBrowser);
