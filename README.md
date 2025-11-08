@@ -8,10 +8,55 @@ A generic web page scraping microservice with browser automation, featuring brow
 - **Browser Pool**: Pre-launched browsers for instant responses (3-5 second scraping vs 15+ seconds)
 - **Site Configurations**: Pre-built configs for common sites (MFC, extensible to others)
 - **Cloudflare Bypass**: Real Chromium browsers with fresh sessions per request
+- **MFC NSFW Authentication**: Support for authenticated scraping with user's own session cookies
+- **Stealth Mode**: Anti-detection for authenticated requests (bypasses Cloudflare bot protection)
 - **Robust Error Handling**: Handles timeouts, challenges, and extraction failures
 - **RESTful API**: Simple HTTP interface with both generic and site-specific endpoints
 - **Docker Ready**: Optimized container with all browser dependencies
 - **Comprehensive Testing**: Multi-suite test coverage with Jest, Puppeteer mocking, and containerized test execution
+
+## Ethical Use & Legal Compliance
+
+### Intended Use Cases
+
+This scraper is designed for **personal data management** and **legitimate collection organization**:
+
+✅ **Authorized Use Cases:**
+- Scraping your own user data from websites where you have an account
+- Managing personal figure collections with enhanced organization
+- Aggregating content you own or have permission to access
+- Educational research and personal archival
+- Building better UIs for your own data
+
+❌ **Prohibited Use Cases:**
+- Scraping copyrighted content for redistribution
+- Bypassing paywalls or authentication for unauthorized access
+- Bulk data harvesting for competitive purposes
+- Automated scraping that violates a site's Terms of Service
+- Any use that could harm the target website or its users
+
+### MFC NSFW Authentication
+
+The NSFW authentication feature uses **stealth browser technology** to bypass Cloudflare's bot detection. This functionality is provided **exclusively for users to access their own authenticated content**:
+
+- **User's Own Data**: Only scrape figures visible to the authenticated user
+- **Personal Use**: For organizing and managing the user's own collection
+- **Session Cookies**: User provides their own valid session cookies
+- **No Credential Storage**: Cookies are time-limited bearer tokens, not permanent credentials
+- **Respects Permissions**: User can only access content allowed by their MFC account settings
+
+**Privacy Model**: Similar to how Plex manages your movie library or Calibre organizes your ebooks - this tool helps you better organize content you legitimately own or have access to.
+
+### Legal Disclaimer
+
+By using this service, you agree to:
+1. Only scrape content you have permission to access
+2. Comply with all applicable Terms of Service
+3. Respect robots.txt and rate limiting
+4. Use scraped data only for personal, non-commercial purposes
+5. Not redistribute scraped copyrighted content
+
+**This software is provided for legitimate personal use only. Users are solely responsible for ensuring their use complies with applicable laws and website terms of service.**
 
 ## API Endpoints
 
@@ -35,12 +80,38 @@ Generic scraping with custom configuration.
 ### POST /scrape/mfc
 Convenience endpoint for MyFigureCollection (uses pre-built config).
 
-**Request Body:**
+**Request Body (Public Content):**
 ```json
 {
   "url": "https://myfigurecollection.net/item/597971"
 }
 ```
+
+**Request Body (NSFW Content with Authentication):**
+```json
+{
+  "url": "https://myfigurecollection.net/item/422432",
+  "config": {
+    "mfcAuth": {
+      "sessionCookies": {
+        "PHPSESSID": "your_session_id",
+        "sesUID": "your_user_id",
+        "TBv4_Iden": "your_user_id",
+        "TBv4_Hash": "your_hash_value"
+      }
+    }
+  }
+}
+```
+
+**How to Get MFC Session Cookies:**
+1. Log into MyFigureCollection in your browser
+2. Open DevTools (F12) → Application/Storage → Cookies
+3. Find `myfigurecollection.net` domain
+4. Copy the four required cookie values
+5. ⚠️ **Security**: Cookies expire (typically monthly), treat like passwords
+
+**Note**: NSFW scraping uses stealth browser mode to bypass Cloudflare protection and requires valid authentication cookies from your own MFC account.
 
 **Response (both endpoints):**
 ```json

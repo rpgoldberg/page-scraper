@@ -8,6 +8,15 @@ export interface ScrapedData {
   [key: string]: any; // Allow additional fields
 }
 
+export interface MFCAuthConfig {
+  sessionCookies: {
+    PHPSESSID: string;
+    sesUID: string;
+    TBv4_Iden: string;
+    TBv4_Hash: string;
+  };
+}
+
 export interface ScrapeConfig {
   imageSelector?: string;
   manufacturerSelector?: string;
@@ -19,6 +28,7 @@ export interface ScrapeConfig {
   };
   waitTime?: number; // milliseconds to wait after page load
   userAgent?: string;
+  mfcAuth?: MFCAuthConfig; // Optional MFC authentication for NSFW content
 }
 
 // Enhanced fuzzy string matching for robust Cloudflare detection
@@ -321,7 +331,38 @@ export class BrowserPool {
     
     return browser;
   }
-  
+
+  // Stealth browser for NSFW content (bypasses Cloudflare bot detection)
+  private static stealthBrowser: Browser | null = null;
+
+  static async getStealthBrowser(): Promise<Browser> {
+    if (!this.stealthBrowser) {
+      console.log('[BROWSER POOL] Creating stealth browser for NSFW content...');
+
+      // In test environment, use regular browser (mocks interfere with puppeteer-extra)
+      if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+        console.log('[BROWSER POOL] Test environment detected - using regular browser instead of stealth');
+        this.stealthBrowser = await puppeteer.launch(this.getBrowserConfig());
+        return this.stealthBrowser;
+      }
+
+      // Production: Use puppeteer-extra with stealth plugin
+      const puppeteerExtra = require('puppeteer-extra');
+      const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+      puppeteerExtra.use(StealthPlugin());
+
+      const config = this.getBrowserConfig();
+      // Add anti-detection flag
+      config.args.push('--disable-blink-features=AutomationControlled');
+
+      this.stealthBrowser = await puppeteerExtra.launch(config);
+      console.log('[BROWSER POOL] Stealth browser created');
+    }
+
+    return this.stealthBrowser;
+  }
+
   private static async replenishPool(): Promise<void> {
     // Use a lock to prevent concurrent replenishment attempts
     if (this.replenishLock || this.browsers.length >= this.POOL_SIZE) return;
@@ -400,8 +441,15 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
   let page: Page | null = null;
 
   try {
-    // Get fresh browser from pool (much faster than launching)
-    browser = await BrowserPool.getBrowser();
+    // Use stealth browser for authenticated NSFW requests (bypasses Cloudflare)
+    // Use regular browser for public content (faster, cleaner)
+    if (config.mfcAuth?.sessionCookies) {
+      console.log('[GENERIC SCRAPER] Using stealth browser for NSFW content');
+      browser = await BrowserPool.getStealthBrowser();
+    } else {
+      console.log('[GENERIC SCRAPER] Using regular browser for public content');
+      browser = await BrowserPool.getBrowser();
+    }
 
     // Use browser context for isolation (browser stays alive for pool reuse)
     context = await browser.createBrowserContext();
@@ -421,13 +469,57 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1',
     });
-    
+
+    // Inject MFC authentication cookies if provided (for NSFW content access)
+    if (config.mfcAuth?.sessionCookies) {
+      console.log('[GENERIC SCRAPER] Applying MFC authentication cookies for NSFW access');
+
+      // Visit MFC homepage first to establish domain context for cookies
+      await page.goto('https://myfigurecollection.net/', {
+        waitUntil: 'domcontentloaded',
+        timeout: 20000
+      });
+
+      const cookies = config.mfcAuth.sessionCookies;
+      await page.setCookie(
+        {
+          name: 'PHPSESSID',
+          value: cookies.PHPSESSID,
+          domain: '.myfigurecollection.net',
+          path: '/',
+          httpOnly: true,
+          secure: true,
+          sameSite: 'Lax'
+        },
+        {
+          name: 'sesUID',
+          value: cookies.sesUID,
+          domain: '.myfigurecollection.net',
+          path: '/',
+        },
+        {
+          name: 'TBv4_Iden',
+          value: cookies.TBv4_Iden,
+          domain: '.myfigurecollection.net',
+          path: '/',
+        },
+        {
+          name: 'TBv4_Hash',
+          value: cookies.TBv4_Hash,
+          domain: '.myfigurecollection.net',
+          path: '/',
+        }
+      );
+
+      console.log('[GENERIC SCRAPER] MFC authentication cookies applied');
+    }
+
     console.log('[GENERIC SCRAPER] Navigating to page...');
-    
+
     // Navigate with faster wait conditions
-    await page.goto(url, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 20000 
+    await page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000
     });
     
     console.log('[GENERIC SCRAPER] Page loaded, waiting for content...');

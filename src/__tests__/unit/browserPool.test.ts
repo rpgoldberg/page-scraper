@@ -512,4 +512,68 @@ describe('Browser Pool Management', () => {
       expect(mockBrowser.close).not.toHaveBeenCalled();
     });
   });
+
+  describe('MFC NSFW Authentication (Issue #19)', () => {
+    it('should inject authentication cookies when mfcAuth config provided', async () => {
+      // Mock page.setCookie to verify cookies are set
+      const setCookieSpy = jest.fn().mockResolvedValue(undefined);
+      mockPage.setCookie = setCookieSpy;
+
+      // Create mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Scrape with authentication config
+      const authConfig = {
+        mfcAuth: {
+          sessionCookies: {
+            PHPSESSID: 'test_session_id',
+            sesUID: '12345',
+            TBv4_Iden: '12345',
+            TBv4_Hash: 'test_hash_value'
+          }
+        }
+      };
+
+      await scrapeGeneric('https://myfigurecollection.net/item/422432', authConfig);
+
+      // Verify cookies were set
+      expect(setCookieSpy).toHaveBeenCalled();
+
+      // Verify all required cookies were set
+      const cookieCalls = setCookieSpy.mock.calls[0];
+      const cookieNames = cookieCalls.map((cookie: any) => cookie.name);
+
+      expect(cookieNames).toContain('PHPSESSID');
+      expect(cookieNames).toContain('sesUID');
+      expect(cookieNames).toContain('TBv4_Iden');
+      expect(cookieNames).toContain('TBv4_Hash');
+    });
+
+    it('should NOT inject cookies when mfcAuth config is not provided', async () => {
+      // Mock page.setCookie to verify it's NOT called
+      const setCookieSpy = jest.fn().mockResolvedValue(undefined);
+      mockPage.setCookie = setCookieSpy;
+
+      // Create mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Scrape WITHOUT authentication config
+      await scrapeGeneric('https://myfigurecollection.net/item/422432', {});
+
+      // Verify cookies were NOT set (public scraping)
+      expect(setCookieSpy).not.toHaveBeenCalled();
+    });
+  });
 });
