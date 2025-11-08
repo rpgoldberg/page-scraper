@@ -394,14 +394,18 @@ export async function initializeBrowserPool(): Promise<void> {
 export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<ScrapedData> {
   console.log(`[GENERIC SCRAPER] Starting scrape for: ${url}`);
   console.log(`[GENERIC SCRAPER] Config:`, config);
-  
+
   let browser: Browser | null = null;
+  let context: any | null = null;  // BrowserContext
   let page: Page | null = null;
-  
+
   try {
     // Get fresh browser from pool (much faster than launching)
     browser = await BrowserPool.getBrowser();
-    page = await browser.newPage();
+
+    // Use browser context for isolation (browser stays alive for pool reuse)
+    context = await browser.createBrowserContext();
+    page = await context.newPage();
     
     // Set realistic browser configuration
     await page.setViewport({ width: 1280, height: 720 });
@@ -622,29 +626,19 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     return { error: error.message };
   } finally {
     try {
-      // Ensure page is closed, even if it might have been already closed
-      if (page && 'close' in page && typeof page.close === 'function') {
-        await page.close().catch(closeError => {
-          console.error('[GENERIC SCRAPER] Error closing page:', closeError);
+      // Close browser context (browser stays alive for pool reuse)
+      if (context && 'close' in context && typeof context.close === 'function') {
+        await context.close().catch(closeError => {
+          console.error('[GENERIC SCRAPER] Error closing context:', closeError);
         });
-        console.log('[GENERIC SCRAPER] Page closed');
+        console.log('[GENERIC SCRAPER] Context closed');
       }
-    } catch (pageClosed) {
-      console.log('[GENERIC SCRAPER] Page closing encountered an issue:', pageClosed);
+    } catch (contextClosed) {
+      console.log('[GENERIC SCRAPER] Context closing encountered an issue:', contextClosed);
     }
 
-    try {
-      // Ensure browser is closed, even if it might have been already closed
-      if (browser && 'close' in browser && typeof browser.close === 'function') {
-        await browser.close().catch(closeError => {
-          console.error('[GENERIC SCRAPER] Error closing browser:', closeError);
-        });
-        console.log('[GENERIC SCRAPER] Browser closed');
-      }
-    } catch (browserClosed) {
-      console.log('[GENERIC SCRAPER] Browser closing encountered an issue:', browserClosed);
-    }
-
+    // NOTE: Browser is NOT closed here - it stays alive in the pool for reuse
+    // This is the fix for Issue #55 - browser context reuse
   }
 }
 
