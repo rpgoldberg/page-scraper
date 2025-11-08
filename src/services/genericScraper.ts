@@ -217,9 +217,7 @@ export const SITE_CONFIGS = {
 export class BrowserPool {
   private static browsers: Browser[] = [];
   private static readonly POOL_SIZE = 3; // Keep 3 browsers ready
-  private static readonly MAX_EMERGENCY_BROWSERS = 5; // Limit emergency browser creation
   private static isInitialized = false;
-  private static replenishLock = false; // Prevent concurrent replenishment
 
   // Added for improved test isolation
   static async reset(): Promise<void> {
@@ -227,8 +225,6 @@ export class BrowserPool {
     await this.closeAll();
     this.browsers = [];
     this.isInitialized = false;
-    this.replenishLock = false;
-    this.emergencyBrowserCount = 0;
   }
   
   private static getBrowserConfig() {
@@ -286,50 +282,54 @@ export class BrowserPool {
     console.log(`[BROWSER POOL] Pool initialized with ${this.browsers.length} browsers`);
   }
   
-  private static emergencyBrowserCount = 0;
-
   static async getBrowser(): Promise<Browser> {
     // Ensure pool is initialized
     if (!this.isInitialized) {
       await this.initialize();
     }
-    
+
+    // Wait for a browser to become available (with timeout)
+    const maxWaitTime = 30000; // 30 seconds max wait
+    const startTime = Date.now();
+    const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID;
+
+    while (this.browsers.length === 0) {
+      if (Date.now() - startTime > maxWaitTime) {
+        throw new Error('[BROWSER POOL] Timeout waiting for available browser');
+      }
+
+      // In test environment, if pool is empty after initialization, something is wrong
+      // Don't wait - fail fast
+      if (isTestEnv && this.isInitialized) {
+        throw new Error('[BROWSER POOL] Pool exhausted in test environment - browser not returned?');
+      }
+
+      console.log('[BROWSER POOL] No browsers available, waiting...');
+      await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms before checking again
+    }
+
     // Get a browser from the pool
     const browser = this.browsers.shift();
-    
-    // Emergency browser handling with enhanced retry and fallback logic
+
     if (!browser) {
-      if (this.emergencyBrowserCount < this.MAX_EMERGENCY_BROWSERS) {
-        console.log('[BROWSER POOL] Pool empty, creating emergency browser...');
-        this.emergencyBrowserCount++;
-        try {
-          const emergencyBrowser = await puppeteer.launch(this.getBrowserConfig());
-          return emergencyBrowser;
-        } catch (launchError) {
-          console.error('[BROWSER POOL] Emergency browser launch failed:', launchError);
-          // Reduced wait time for emergency failure
-          await new Promise(resolve => setTimeout(resolve, 250));
-          
-          // Last resort fallback mechanism
-          if (this.emergencyBrowserCount >= this.MAX_EMERGENCY_BROWSERS) {
-            throw new Error('[BROWSER POOL] Max emergency browser attempts exhausted');
-          }
-          return this.getBrowser();
-        }
-      } else {
-        console.warn('[BROWSER POOL] Max emergency browsers reached. Blocking further attempts.');
-        throw new Error('[BROWSER POOL] Browser pool exhausted');
-      }
+      throw new Error('[BROWSER POOL] Failed to retrieve browser from pool');
     }
-    
+
     console.log(`[BROWSER POOL] Retrieved browser from pool (${this.browsers.length} remaining)`);
-    
-    // Immediately start replacing the browser we just took
-    this.replenishPool().catch(error => {
-      console.error('[BROWSER POOL] Failed to replenish pool:', error);
-    });
-    
+
     return browser;
+  }
+
+  // Return a browser back to the pool after use
+  static returnBrowser(browser: Browser): void {
+    // Only return if pool isn't already full
+    if (this.browsers.length < this.POOL_SIZE) {
+      this.browsers.push(browser);
+      console.log(`[BROWSER POOL] Browser returned to pool (${this.browsers.length} available)`);
+    } else {
+      console.log('[BROWSER POOL] Pool full, browser will be closed');
+      browser.close().catch(err => console.error('[BROWSER POOL] Error closing extra browser:', err));
+    }
   }
 
   // Stealth browser for NSFW content (bypasses Cloudflare bot detection)
@@ -363,27 +363,6 @@ export class BrowserPool {
     return this.stealthBrowser;
   }
 
-  private static async replenishPool(): Promise<void> {
-    // Use a lock to prevent concurrent replenishment attempts
-    if (this.replenishLock || this.browsers.length >= this.POOL_SIZE) return;
-
-    try {
-      this.replenishLock = true;
-      const browser = await puppeteer.launch(this.getBrowserConfig());
-      this.browsers.push(browser);
-      console.log(`[BROWSER POOL] Pool replenished (${this.browsers.length}/${this.POOL_SIZE})`);
-      // Reset emergency browser count after successful replenishment
-      this.emergencyBrowserCount = Math.max(0, this.emergencyBrowserCount - 1);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown replenishment error';
-      console.error(`[BROWSER POOL] Failed to replenish pool: ${errorMessage}`);
-      // Optional: Introduce exponential backoff or retry mechanism
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    } finally {
-      this.replenishLock = false;
-    }
-  }
-  
   static async closeAll(): Promise<void> {
     console.log(`[BROWSER POOL] Closing ${this.browsers.length} browsers...`);
     
@@ -439,6 +418,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
   let browser: Browser | null = null;
   let context: any | null = null;  // BrowserContext
   let page: Page | null = null;
+  let isPooledBrowser = false; // Track if browser came from pool (needs to be returned)
 
   try {
     // Use stealth browser for authenticated NSFW requests (bypasses Cloudflare)
@@ -446,9 +426,11 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     if (config.mfcAuth?.sessionCookies) {
       console.log('[GENERIC SCRAPER] Using stealth browser for NSFW content');
       browser = await BrowserPool.getStealthBrowser();
+      isPooledBrowser = false; // Stealth browser is singleton, not pooled
     } else {
       console.log('[GENERIC SCRAPER] Using regular browser for public content');
       browser = await BrowserPool.getBrowser();
+      isPooledBrowser = true; // Regular browsers come from pool and should be returned
     }
 
     // Use browser context for isolation (browser stays alive for pool reuse)
@@ -727,6 +709,12 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
       }
     } catch (contextClosed) {
       console.log('[GENERIC SCRAPER] Context closing encountered an issue:', contextClosed);
+    }
+
+    // Return browser to pool if it came from the pool
+    if (browser && isPooledBrowser) {
+      BrowserPool.returnBrowser(browser);
+      console.log('[GENERIC SCRAPER] Browser returned to pool');
     }
 
     // NOTE: Browser is NOT closed here - it stays alive in the pool for reuse
