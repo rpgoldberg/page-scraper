@@ -10,8 +10,7 @@ module.exports = {
     '/node_modules/',
     '/__tests__/__mocks__/',
     '/__tests__/fixtures/',
-    '/__tests__/setup.ts',
-    '/__tests__/archived-overtests/'  // Archived over-tested files
+    '/__tests__/setup.ts'
   ],
   transform: {
     '^.+\.ts$': ['ts-jest', {
