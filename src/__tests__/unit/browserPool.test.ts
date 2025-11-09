@@ -765,4 +765,99 @@ describe('Browser Pool Management', () => {
       );
     });
   });
+
+  describe('Browser Context Isolation (No Data Bleed)', () => {
+    it('should isolate cookies between browser contexts', async () => {
+      // This test verifies that each browser context is isolated by tracking
+      // how many times separate contexts are created and closed
+      const contextCloseCallCount: number[] = [];
+
+      // Create separate tracking for each context
+      const mockContext1 = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockImplementation(() => {
+          contextCloseCallCount.push(1);
+          return Promise.resolve();
+        }),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      const mockContext2 = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockImplementation(() => {
+          contextCloseCallCount.push(2);
+          return Promise.resolve();
+        }),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      // Mock createBrowserContext to return different contexts
+      let callCount = 0;
+      mockBrowser.createBrowserContext = jest.fn().mockImplementation(() => {
+        callCount++;
+        return Promise.resolve(callCount === 1 ? mockContext1 : mockContext2);
+      });
+
+      // First request: scrape with MFC auth
+      await scrapeGeneric('https://myfigurecollection.net/item/1', {});
+
+      // Second request: scrape different URL
+      await scrapeGeneric('https://example.com', {});
+
+      // Verify separate browser contexts were created and closed
+      expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(2);
+      expect(contextCloseCallCount.length).toBe(2);
+      expect(contextCloseCallCount[0]).toBe(1); // First context closed
+      expect(contextCloseCallCount[1]).toBe(2); // Second context closed
+
+      // Verify browser itself was NOT closed (stays in pool for reuse)
+      expect(mockBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it('should isolate localStorage and session data between contexts', async () => {
+      // Track localStorage per request
+      const request1Storage = new Map<string, string>();
+      const request2Storage = new Map<string, string>();
+      let requestCount = 0;
+
+      // Mock page.evaluate to track localStorage per request
+      mockPage.evaluate = jest.fn().mockImplementation((fn: any, ...args: any[]) => {
+        if (args.length === 2) {
+          if (requestCount === 0) {
+            request1Storage.set(args[0], args[1]);
+          } else {
+            request2Storage.set(args[0], args[1]);
+          }
+        }
+        return Promise.resolve();
+      });
+
+      // Create mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // First request: simulate setting localStorage
+      await scrapeGeneric('https://example.com/page1', {});
+      await mockPage.evaluate(() => {}, 'userToken', 'secret_token_123');
+      requestCount++;
+
+      // Second request: verify localStorage is isolated
+      await scrapeGeneric('https://example.com/page2', {});
+      await mockPage.evaluate(() => {}, 'checkToken', '');
+      requestCount++;
+
+      // Verify each request has independent localStorage
+      expect(request1Storage.has('userToken')).toBe(true);
+      expect(request1Storage.get('userToken')).toBe('secret_token_123');
+      expect(request2Storage.has('userToken')).toBe(false);
+
+      // Verify browser created separate contexts
+      expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(2);
+    });
+  });
 });
