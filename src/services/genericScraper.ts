@@ -428,9 +428,31 @@ export async function initializeBrowserPool(): Promise<void> {
   await BrowserPool.initialize();
 }
 
+/**
+ * Sanitize sensitive data from config before logging
+ * Prevents exposure of session cookies and other sensitive information
+ */
+function sanitizeConfigForLogging(config: ScrapeConfig): any {
+  const sanitized: any = { ...config };
+
+  // Redact MFC authentication cookies
+  if (sanitized.mfcAuth?.sessionCookies) {
+    sanitized.mfcAuth = {
+      sessionCookies: {
+        PHPSESSID: '[REDACTED]',
+        sesUID: '[REDACTED]',
+        TBv4_Iden: '[REDACTED]',
+        TBv4_Hash: '[REDACTED]'
+      }
+    };
+  }
+
+  return sanitized;
+}
+
 export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<ScrapedData> {
   console.log(`[GENERIC SCRAPER] Starting scrape for: ${url}`);
-  console.log(`[GENERIC SCRAPER] Config:`, config);
+  console.log(`[GENERIC SCRAPER] Config:`, sanitizeConfigForLogging(config));
 
   let browser: Browser | null = null;
   let context: any | null = null;  // BrowserContext
@@ -475,7 +497,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
 
     // Inject MFC authentication cookies if provided (for NSFW content access)
     if (config.mfcAuth?.sessionCookies) {
-      console.log('[GENERIC SCRAPER] Applying MFC authentication cookies for NSFW access');
+      console.log('[GENERIC SCRAPER] Applying MFC authentication for NSFW access');
 
       // Visit MFC homepage first to establish domain context for cookies
       await page.goto('https://myfigurecollection.net/', {
@@ -514,7 +536,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
         }
       );
 
-      console.log('[GENERIC SCRAPER] MFC authentication cookies applied');
+      console.log('[GENERIC SCRAPER] MFC authentication applied successfully');
     }
 
     console.log('[GENERIC SCRAPER] Navigating to page...');
