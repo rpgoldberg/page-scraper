@@ -1,5 +1,5 @@
 # =============================================================================
-# BASE STAGE - Secure Ubuntu 24.04 + Node 24 + Patched Chrome 140.0.7339.207
+# BASE STAGE - Secure Ubuntu 24.04 + Node 24 + Patched Chrome 141.0.7390.122
 # =============================================================================
 FROM ubuntu:24.04 AS base
 
@@ -55,9 +55,9 @@ RUN apt-get update && apt-get upgrade -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Download and install patched Chrome for Testing (140.0.7339.207) - fixes CVE-2025-10890/10891/10892
+# Download and install patched Chrome for Testing (141.0.7390.122) - fixes CVE-2025-11756/12036/11458/11205/11206
 RUN apt-get update && apt-get install -y wget unzip \
-    && wget -q https://storage.googleapis.com/chrome-for-testing-public/140.0.7339.207/linux64/chrome-linux64.zip \
+    && wget -q https://storage.googleapis.com/chrome-for-testing-public/141.0.7390.122/linux64/chrome-linux64.zip \
     && unzip chrome-linux64.zip \
     && mv chrome-linux64 /opt/chrome \
     && rm chrome-linux64.zip \

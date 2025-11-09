@@ -38,7 +38,8 @@ interface MockPage {
 interface MockBrowser {
   newPage: MockFn;
   close: MockFn;
-  createIncognitoBrowserContext: MockFn;
+  createBrowserContext: MockFn;  // Standard Puppeteer API
+  createIncognitoBrowserContext: MockFn;  // Deprecated, kept for compatibility
 }
 
 // Comprehensive Mock Implementation
@@ -81,13 +82,20 @@ export const createMockPage = (): MockPage => ({
   on: jest.fn().mockReturnThis() as any,
 });
 
-export const createMockBrowser = (): MockBrowser => ({
-  newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
-  close: jest.fn().mockResolvedValue(undefined) as any,
-  createIncognitoBrowserContext: jest.fn().mockResolvedValue({
+export const createMockBrowser = (): MockBrowser => {
+  const mockContext = {
     newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
-  }) as any,
-});
+    close: jest.fn().mockResolvedValue(undefined) as any,
+    pages: jest.fn().mockReturnValue([]) as any,
+  };
+
+  return {
+    newPage: jest.fn().mockResolvedValue(createMockPage()) as any,
+    close: jest.fn().mockResolvedValue(undefined) as any,
+    createBrowserContext: jest.fn().mockResolvedValue(mockContext) as any,  // Standard Puppeteer API
+    createIncognitoBrowserContext: jest.fn().mockResolvedValue(mockContext) as any,  // Deprecated
+  };
+};
 
 // Puppeteer Mock Module
 const mockPuppeteer = {

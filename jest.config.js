@@ -25,6 +25,7 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/index.ts',
     '!src/utils/logger.ts',
+    '!src/__tests__/**',  // Exclude all test files and mocks
   ],
   coverageDirectory: 'coverage',
   coverageReporters: [
