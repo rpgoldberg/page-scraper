@@ -334,7 +334,7 @@ export class BrowserPool {
       /* istanbul ignore next - Pool overflow scenario rarely occurs */
       console.log('[BROWSER POOL] Pool full, browser will be closed');
       /* istanbul ignore next */
-      browser.close().catch(err => console.error('[BROWSER POOL] Error closing extra browser:', err));
+      browser.close().catch((err: any) => console.error('[BROWSER POOL] Error closing extra browser:', err));
     }
   }
 
@@ -371,6 +371,11 @@ export class BrowserPool {
       this.stealthBrowser = await puppeteerExtra.launch(config);
       /* istanbul ignore next */
       console.log('[BROWSER POOL] Stealth browser created');
+    }
+
+    // TypeScript doesn't know this is always set by this point
+    if (!this.stealthBrowser) {
+      throw new Error('[BROWSER POOL] Failed to create stealth browser');
     }
 
     return this.stealthBrowser;
@@ -413,7 +418,6 @@ export class BrowserPool {
     });
     
     this.browsers = [];
-    this.emergencyBrowserCount = 0; // Reset emergency browser count
     this.isInitialized = false;
     console.log('[BROWSER POOL] All browsers close attempts completed');
   }
@@ -449,12 +453,16 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     // Use browser context for isolation (browser stays alive for pool reuse)
     context = await browser.createBrowserContext();
     page = await context.newPage();
-    
+
+    if (!page) {
+      throw new Error('[GENERIC SCRAPER] Failed to create page');
+    }
+
     // Set realistic browser configuration
     await page.setViewport({ width: 1280, height: 720 });
     const userAgent = config.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36';
     await page.setUserAgent(userAgent);
-    
+
     // Set extra headers to appear more like a real browser
     await page.setExtraHTTPHeaders({
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -715,7 +723,7 @@ export async function scrapeGeneric(url: string, config: ScrapeConfig): Promise<
     try {
       // Close browser context (browser stays alive for pool reuse)
       if (context && 'close' in context && typeof context.close === 'function') {
-        await context.close().catch(closeError => {
+        await context.close().catch((closeError: any) => {
           console.error('[GENERIC SCRAPER] Error closing context:', closeError);
         });
         console.log('[GENERIC SCRAPER] Context closed');
