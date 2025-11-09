@@ -593,6 +593,48 @@ describe('Browser Pool Management', () => {
       expect(cookieNames).toContain('sesUID');
       expect(cookieNames).toContain('TBv4_Iden');
       expect(cookieNames).toContain('TBv4_Hash');
+
+      // Verify cookie structure details (covers object literal lines in source)
+      const cookies = setCookieSpy.mock.calls[0];
+      const phpSessionCookie = cookies.find((c: any) => c.name === 'PHPSESSID');
+      const sesUIDCookie = cookies.find((c: any) => c.name === 'sesUID');
+      const tbIdenCookie = cookies.find((c: any) => c.name === 'TBv4_Iden');
+      const tbHashCookie = cookies.find((c: any) => c.name === 'TBv4_Hash');
+
+      // Verify PHPSESSID cookie structure
+      expect(phpSessionCookie).toMatchObject({
+        name: 'PHPSESSID',
+        value: 'test_session_id',
+        domain: '.myfigurecollection.net',
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax'
+      });
+
+      // Verify sesUID cookie structure (basic properties only)
+      expect(sesUIDCookie).toMatchObject({
+        name: 'sesUID',
+        value: '12345',
+        domain: '.myfigurecollection.net',
+        path: '/'
+      });
+
+      // Verify TBv4_Iden cookie structure (basic properties only)
+      expect(tbIdenCookie).toMatchObject({
+        name: 'TBv4_Iden',
+        value: '12345',
+        domain: '.myfigurecollection.net',
+        path: '/'
+      });
+
+      // Verify TBv4_Hash cookie structure (basic properties only)
+      expect(tbHashCookie).toMatchObject({
+        name: 'TBv4_Hash',
+        value: 'test_hash_value',
+        domain: '.myfigurecollection.net',
+        path: '/'
+      });
     });
 
     it('should NOT inject cookies when mfcAuth config is not provided', async () => {
