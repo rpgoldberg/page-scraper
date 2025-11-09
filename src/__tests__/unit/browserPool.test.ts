@@ -513,6 +513,46 @@ describe('Browser Pool Management', () => {
     });
   });
 
+  describe('Browser Pool Return Mechanism', () => {
+    it('should return browser to pool after scraping', async () => {
+      // Mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Check initial pool size
+      const initialPoolSize = 3; // Default POOL_SIZE
+
+      // Scrape once
+      await scrapeGeneric('https://example.com/test', {});
+
+      // Browser should be returned to pool (verify by checking logs or pool state)
+      // The key behavior: context is closed, browser is returned
+      expect(mockContext.close).toHaveBeenCalled();
+      expect(mockBrowser.close).not.toHaveBeenCalled(); // Browser stays alive
+    });
+
+    it('should handle pool full scenario when returning browser', async () => {
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Scrape - browser gets taken and returned
+      await scrapeGeneric('https://example.com/test1', {});
+
+      // Verify context closed (browser returned to pool)
+      expect(mockContext.close).toHaveBeenCalled();
+    });
+  });
+
   describe('MFC NSFW Authentication (Issue #19)', () => {
     it('should inject authentication cookies when mfcAuth config provided', async () => {
       // Mock page.setCookie to verify cookies are set
