@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added tests for null page handling
   - Added detailed cookie structure assertions
 - **SonarCloud Quality Gate**: Resolved SonarCloud failure by achieving >80% coverage on new code
+- **Secure Logging**: Implemented sanitization of sensitive data in logs (genericScraper.ts:431-451)
+  - Added `sanitizeConfigForLogging()` helper function to redact MFC session cookies
+  - Prevents exposure of PHPSESSID, sesUID, TBv4_Iden, TBv4_Hash in console logs
+  - All sensitive values replaced with `[REDACTED]` in log output
+  - Maintains safe config logging for debugging purposes
 
 ### Security
 - **Chrome CVE Fixes**: Patched 5 HIGH severity Chrome vulnerabilities
@@ -52,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CVE-2025-11458: Security bug fix
   - CVE-2025-11205: Security bug fix
   - CVE-2025-11206: Security bug fix
+- **Secure Logging Practices**: Implemented data sanitization to prevent credential exposure
+  - Redacts MFC session cookies (PHPSESSID, sesUID, TBv4_Iden, TBv4_Hash) from logs
+  - Addresses "Generic: Secure Error Handling" code analysis finding
+  - Addresses "Generic: Secure Logging Practices" code analysis finding
+  - Added comprehensive security tests to verify sensitive data never appears in logs
 
 ### Performance
 - **6x Faster Scraping**: Browser context reuse reduces per-request overhead
@@ -60,7 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pool maintains 3 warm browsers ready for instant reuse
 
 ### Testing
-- **Test Count**: 65 passing tests (3 skipped concurrency tests)
+- **Test Count**: 67 passing tests (3 skipped concurrency tests)
+  - Added 2 comprehensive security tests for sensitive data sanitization
+  - Verifies MFC session cookies never appear in logs
+  - Confirms safe config values are logged correctly
 - **Coverage**: 85%+ on new code, 100% on critical paths
 - **Test Suites**: 5/5 passing
 - **Zero Regression**: All existing functionality preserved
