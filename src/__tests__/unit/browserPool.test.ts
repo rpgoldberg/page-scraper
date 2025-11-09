@@ -658,4 +658,111 @@ describe('Browser Pool Management', () => {
       expect(setCookieSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe('Environment Detection and Pool Exhaustion Handling', () => {
+    it('should detect test environment via NODE_ENV', async () => {
+      // Save original env
+      const originalNodeEnv = process.env.NODE_ENV;
+      const originalJestWorker = process.env.JEST_WORKER_ID;
+
+      try {
+        // Set NODE_ENV to test (first part of OR condition)
+        process.env.NODE_ENV = 'test';
+        delete process.env.JEST_WORKER_ID;
+
+        // Create a scenario where pool is empty after initialization
+        const { BrowserPool } = await import('../../services/genericScraper');
+
+        // Empty the pool to trigger exhaustion check
+        (BrowserPool as any).browsers = [];
+        (BrowserPool as any).isInitialized = true;
+
+        // This should throw because isTestEnv (via NODE_ENV) && isInitialized
+        await expect(BrowserPool.getBrowser()).rejects.toThrow(
+          'Pool exhausted in test environment'
+        );
+      } finally {
+        // Restore env
+        process.env.NODE_ENV = originalNodeEnv;
+        if (originalJestWorker) {
+          process.env.JEST_WORKER_ID = originalJestWorker;
+        }
+      }
+    });
+
+    it('should detect test environment via JEST_WORKER_ID', async () => {
+      // Save original env
+      const originalNodeEnv = process.env.NODE_ENV;
+      const originalJestWorker = process.env.JEST_WORKER_ID;
+
+      try {
+        // Set JEST_WORKER_ID (second part of OR condition)
+        delete process.env.NODE_ENV;
+        process.env.JEST_WORKER_ID = '1';
+
+        // Create a scenario where pool is empty after initialization
+        const { BrowserPool } = await import('../../services/genericScraper');
+
+        // Empty the pool to trigger exhaustion check
+        (BrowserPool as any).browsers = [];
+        (BrowserPool as any).isInitialized = true;
+
+        // This should throw because isTestEnv (via JEST_WORKER_ID) && isInitialized
+        await expect(BrowserPool.getBrowser()).rejects.toThrow(
+          'Pool exhausted in test environment'
+        );
+      } finally {
+        // Restore env
+        process.env.NODE_ENV = originalNodeEnv;
+        if (originalJestWorker) {
+          process.env.JEST_WORKER_ID = originalJestWorker;
+        } else {
+          delete process.env.JEST_WORKER_ID;
+        }
+      }
+    });
+
+    it('should handle browser close with isConnected check', async () => {
+      const { BrowserPool } = await import('../../services/genericScraper');
+
+      // Create a mock browser with isConnected
+      const connectedBrowser = {
+        isConnected: jest.fn().mockResolvedValue(true),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+
+      const disconnectedBrowser = {
+        isConnected: jest.fn().mockResolvedValue(false),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+
+      // Set browsers in pool
+      (BrowserPool as any).browsers = [connectedBrowser, disconnectedBrowser];
+
+      await BrowserPool.closeAll();
+
+      // Connected browser should be closed
+      expect(connectedBrowser.isConnected).toHaveBeenCalled();
+      expect(connectedBrowser.close).toHaveBeenCalled();
+
+      // Disconnected browser should check but not close
+      expect(disconnectedBrowser.isConnected).toHaveBeenCalled();
+      expect(disconnectedBrowser.close).not.toHaveBeenCalled();
+    });
+
+    it('should handle null page creation failure', async () => {
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(null), // Return null instead of page
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // This should throw because page is null
+      await expect(scrapeGeneric('https://example.com', {})).rejects.toThrow(
+        'Failed to create page'
+      );
+    });
+  });
 });
