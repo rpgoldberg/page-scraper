@@ -860,4 +860,82 @@ describe('Browser Pool Management', () => {
       expect(mockBrowser.createBrowserContext).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('Security: Sensitive Data Sanitization in Logs', () => {
+    it('should not log sensitive MFC session cookies', async () => {
+      // Spy on console.log to capture log output
+      const consoleLogSpy = jest.spyOn(console, 'log');
+
+      // Create mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Scrape with MFC authentication
+      const sensitiveConfig = {
+        mfcAuth: {
+          sessionCookies: {
+            PHPSESSID: 'super_secret_session_123',
+            sesUID: 'secret_user_456',
+            TBv4_Iden: 'secret_iden_789',
+            TBv4_Hash: 'secret_hash_abc'
+          }
+        }
+      };
+
+      await scrapeGeneric('https://myfigurecollection.net/item/1', sensitiveConfig);
+
+      // Verify logs don't contain actual sensitive values
+      const allLogCalls = consoleLogSpy.mock.calls.map(call => JSON.stringify(call));
+      const allLogsString = allLogCalls.join(' ');
+
+      // Sensitive values should NOT appear in logs
+      expect(allLogsString).not.toContain('super_secret_session_123');
+      expect(allLogsString).not.toContain('secret_user_456');
+      expect(allLogsString).not.toContain('secret_iden_789');
+      expect(allLogsString).not.toContain('secret_hash_abc');
+
+      // But [REDACTED] should appear (indicating sanitization is working)
+      expect(allLogsString).toContain('[REDACTED]');
+
+      // Restore console.log
+      consoleLogSpy.mockRestore();
+    });
+
+    it('should log config safely when no sensitive data is present', async () => {
+      // Spy on console.log
+      const consoleLogSpy = jest.spyOn(console, 'log');
+
+      // Create mock context
+      const mockContext = {
+        newPage: jest.fn().mockResolvedValue(mockPage),
+        close: jest.fn().mockResolvedValue(undefined),
+        pages: jest.fn().mockReturnValue([]),
+      };
+
+      mockBrowser.createBrowserContext = jest.fn().mockResolvedValue(mockContext);
+
+      // Scrape without authentication (no sensitive data)
+      const safeConfig = {
+        userAgent: 'Mozilla/5.0 Test Browser'
+      };
+
+      await scrapeGeneric('https://example.com', safeConfig);
+
+      // Verify config was logged (should be safe)
+      const configLogCall = consoleLogSpy.mock.calls.find(call =>
+        call[0]?.includes?.('[GENERIC SCRAPER] Config:')
+      );
+
+      expect(configLogCall).toBeDefined();
+      expect(JSON.stringify(configLogCall)).toContain('Mozilla/5.0 Test Browser');
+
+      // Restore console.log
+      consoleLogSpy.mockRestore();
+    });
+  });
 });
